@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<!-- htmlhint inline-style-disabled:false, script-disabled:false -->
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Execution History – {{ project }}</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+        crossorigin="anonymous" />
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <style>
+    /* ── Base ───────────────────────────────────────────────────── */
+    :root {
+      --pass-color  : #3dd68c;
+      --fail-color  : #f2545b;
+      --skip-color  : #8a9bb0;
+      --error-color : #f0a500;
+      --card-bg     : #1e2535;
+      --header-bg   : #151b2e;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: #111827;
+      color: #d0d8e8;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .history-header {
+      background: var(--header-bg);
+      border-bottom: 2px solid #2a3550;
+      padding: 2rem 2.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .history-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #e8edf5;
+      margin: 0 0 0.5rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .history-header h1 i {
+      font-size: 2.2rem;
+      color: #7eb8f7;
+    }
+
+    .history-header .meta {
+      font-size: 0.85rem;
+      color: #7a8aaa;
+      margin-top: 0.5rem;
+    }
+
+    /* ── Summary stats ──────────────────────────────────────────── */
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 2rem 2.5rem 2rem 2.5rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 1.2rem 1.5rem;
+      border: 1px solid #2a3550;
+      text-align: center;
+    }
+
+    .stat-card .stat-num {
+      font-size: 2.5rem;
+      font-weight: 800;
+      line-height: 1;
+      color: #7eb8f7;
+    }
+
+    .stat-card .stat-lbl {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #7a8aaa;
+      margin-top: 0.5rem;
+    }
+
+    /* ── Execution list ─────────────────────────────────────────── */
+    .execution-list-wrapper {
+      padding: 0 2.5rem 2rem 2.5rem;
+    }
+
+    .execution-list-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #e8edf5;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .execution-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* ── Execution item ─────────────────────────────────────────── */
+    .execution-item {
+      background: var(--card-bg);
+      border: 1px solid #2a3550;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .execution-item:hover {
+      border-color: #3d5080;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .execution-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 0.5fr;
+      gap: 1.5rem;
+      align-items: center;
+      padding: 1.2rem 1.5rem;
+      cursor: pointer;
+    }
+
+    .execution-header:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .execution-timestamp {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .execution-timestamp .date {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e0e8f5;
+    }
+
+    .execution-timestamp .time {
+      font-size: 0.8rem;
+      color: #7a8aaa;
+    }
+
+    .execution-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      text-align: center;
+    }
+
+    .execution-meta .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #5a6a8a;
+    }
+
+    .execution-meta .value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #d0d8e8;
+    }
+
+    .execution-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .action-btn {
+      background: #2a3550;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      color: #7eb8f7;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+    }
+
+    .action-btn:hover {
+      background: #3d5080;
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .action-btn i {
+      font-size: 0.9rem;
+    }
+
+    .execute-details {
+      display: none;
+      padding: 0 1.5rem 1.2rem 1.5rem;
+      border-top: 1px solid #2a3550;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .execute-details.show {
+      display: block;
+    }
+
+    .detail-section {
+      margin-bottom: 1rem;
+    }
+
+    .detail-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .detail-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #7a8aaa;
+      margin-bottom: 0.5rem;
+    }
+
+    .logs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .log-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid #2a3550;
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      font-size: 0.85rem;
+      color: #a0b0d0;
+      text-decoration: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .log-item:hover {
+      background: rgba(126, 184, 247, 0.1);
+      border-color: #7eb8f7;
+      color: #7eb8f7;
+      text-decoration: none;
+    }
+
+    .log-item i {
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    /* ── Empty state ────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: #7a8aaa;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      color: #2a3550;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .empty-state h3 {
+      color: #d0d8e8;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    .history-footer {
+      text-align: center;
+      padding: 2rem;
+      color: #5a6a8a;
+      font-size: 0.8rem;
+      border-top: 1px solid #2a3550;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .execution-header {
+        grid-template-columns: 1.5fr 1fr 1fr;
+        gap: 1rem;
+      }
+
+      .execution-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        margin-top: 0.5rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .history-header {
+        padding: 1.5rem 1.5rem;
+      }
+
+      .history-header h1 {
+        font-size: 1.5rem;
+      }
+
+      .summary-stats {
+        margin: 1.5rem 1.5rem;
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .execution-list-wrapper {
+        padding: 0 1.5rem 1.5rem 1.5rem;
+      }
+
+      .execution-header {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+
+      .execution-actions {
+        grid-column: auto;
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <div class="history-header">
+    <h1>
+      <i class="bi bi-clock-history"></i>
+      Execution History
+    </h1>
+    <div class="meta">
+      Project: <strong>{{ project }}</strong>
+      {% if generated_at %}
+        | Generated: {{ generated_at }}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Summary Stats ──────────────────────────────────────────── -->
+  <div class="summary-stats">
+    <div class="stat-card">
+      <div class="stat-num">{{ total_executions }}</div>
+      <div class="stat-lbl">Total Executions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ reports[0].date if reports else '—' }}</div>
+      <div class="stat-lbl">Latest Execution</div>
+    </div>
+  </div>
+
+  <!-- ── Execution List ─────────────────────────────────────────── -->
+  <div class="execution-list-wrapper">
+    <div class="execution-list-title">
+      <i class="bi bi-list-ul"></i>
+      All Executions (Newest First)
+    </div>
+
+    {% if reports %}
+      <div class="execution-list">
+        {% for report in reports %}
+          <div class="execution-item">
+            <!-- Header / Summary -->
+            <div class="execution-header" onclick="toggleDetails(this)">
+              <div class="execution-timestamp">
+                <div class="date">{{ report.date }}</div>
+                <div class="time">{{ report.time }}</div>
+              </div>
+
+              <div class="execution-meta">
+                <div class="label">Tests</div>
+                <div class="value">{{ report.test_count or '?' }}</div>
+              </div>
+
+              <div class="execution-meta">
+                <div class="label">Execution ID</div>
+                <div class="value" style="font-size: 0.9rem; font-family: monospace;">
+                  {{ report.name }}
+                </div>
+              </div>
+
+              <div style="text-align: right;">
+                <i class="bi bi-chevron-down" style="color: #5a6a8a; font-size: 1.2rem;"></i>
+              </div>
+            </div>
+
+            <!-- Expandable Details -->
+            <div class="execute-details">
+              <div class="detail-section">
+                <div class="detail-title">
+                  <i class="bi bi-file-earmark-pdf"></i> Report
+                </div>
+                <a href="{{ report.report_path }}" class="action-btn" style="width: 100%; justify-content: center;">
+                  <i class="bi bi-file-earmark-text"></i>
+                  View Detailed Report
+                </a>
+              </div>
+
+              {% if report.log_files %}
+                <div class="detail-section">
+                  <div class="detail-title">
+                    <i class="bi bi-file-text"></i> Logs ({{ report.log_files|length }})
+                  </div>
+                  <div class="logs-list">
+                    {% for log_file in report.log_files %}
+                      <a href="{{ report.logs_dir }}/{{ log_file }}" class="log-item" target="_blank">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>{{ log_file }}</span>
+                      </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="detail-section">
+                <div class="detail-title">Details</div>
+                <div style="font-size: 0.85rem; color: #a0b0d0; font-family: monospace;">
+                  <div>Execution ID: {{ report.name }}</div>
+                  <div>Timestamp: {{ report.timestamp }}</div>
+                  <div>Directory: {{ report.relative_dir }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <h3>No Executions Found</h3>
+        <p>Run the test suite to generate reports and logs.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Footer ──────────────────────────────────────────────────── -->
+  <div class="history-footer">
+    <p>
+      Visual Testing Framework — History
+      {% if total_executions > 0 %}
+        | {{ total_executions }} execution{{ 's' if total_executions > 1 else '' }} tracked
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- ── Scripts ──────────────────────────────────────────────────── -->
+  <script>
+    function toggleDetails(headerElement) {
+      const details = headerElement.nextElementSibling;
+      details.classList.toggle('show');
+
+      // Rotate chevron
+      const chevron = headerElement.querySelector('.bi-chevron-down');
+      chevron.style.transform = details.classList.contains('show')
+        ? 'rotate(180deg)'
+        : 'rotate(0deg)';
+    }
+
+    // Optional: Auto-expand first item on load
+    document.addEventListener('DOMContentLoaded', function () {
+      const firstItem = document.querySelector('.execution-header');
+      if (firstItem) {
+        // Uncomment to auto-expand:
+        // toggleDetails(firstItem);
+      }
+    });
+  </script>
+</body>
+
+</html>

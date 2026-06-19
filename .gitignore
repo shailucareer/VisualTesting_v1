@@ -1,0 +1,14 @@
+# Runtime artefacts – never commit
+projects/*/screenshots/
+projects/*/reports/
+projects/*/diffs/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# WebDriver cache
+.wdm/

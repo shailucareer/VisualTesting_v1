@@ -30,7 +30,7 @@
 
 run_mode: 'all'
 baseline_mode: 'screenshot'
-figma_access_token: figd_EkI6Fj-YG3vPrRHyXT3L0hx6tyUOB8ypCLaHWIIm
+figma_access_token:
 
 test_cases:
 

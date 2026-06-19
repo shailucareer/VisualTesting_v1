@@ -2,7 +2,6 @@
 projects/*/screenshots/
 projects/*/reports/
 projects/*/diffs/
-
 # Python
 __pycache__/
 *.py[cod]

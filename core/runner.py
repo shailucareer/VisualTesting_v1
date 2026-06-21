@@ -428,7 +428,7 @@ class TestRunner:
                     return TestResult(
                         test_case=tc,
                         status="error",
-                        error_message="No screenshots available for comparison.",
+                        error_message="No screenshots available for comparison. Run with --capture-screenshots",
                     )
                 actual_path = screenshot_path
 

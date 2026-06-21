@@ -17,7 +17,7 @@ Primary CLI options:
 - `--project` (required): project folder under `projects/`
 - `--baseline-mode` (optional): `auto`, `figma`, or `screenshot`
 - `--capture-screenshots` (optional): capture fresh live screenshots
-- `--download-figma` (optional): download latest Figma baseline images
+- `--fetch-figma` (optional): fetch Figma file JSON metadata
 - `--threshold` (optional): SSIM pass threshold
 - `--dpr` (optional): device pixel ratio normalization factor
 - `--browser`, `--no-headless`, `--page-load-wait` (optional): capture behavior
@@ -34,7 +34,7 @@ Top-level keys:
   - `selected`: execute only test cases with `run: true`
   - `<test_name>`: execute one specific test by name
 - `baseline_mode`:
-  - `auto`: first-run uses Figma; later runs allow user decision and persist selection
+  - `auto`: first-run uses Figma; later runs use previous screenshot when available, then persist selection
   - `figma`: always compare against Figma image
   - `screenshot`: compare against previous execution screenshot
 - `figma_access_token`: global token used for Figma API calls
@@ -42,7 +42,7 @@ Top-level keys:
 Per test case:
 
 - `name`, `run`, `device`, `figma_file_name`, `url`
-- `figma_file_id`, `figma_node_id` (required only for Figma API download)
+- `figma_file_id` (optional, used for Figma file metadata fetch)
 
 ### 1.3 File System Inputs
 
@@ -69,8 +69,8 @@ Per test case:
 
 1. If baseline mode is `auto`:
    - If no previous screenshot exists for runnable tests: use `figma`.
-   - If previous screenshot exists: user selects `figma` or `screenshot`.
-2. Resolved baseline choice is persisted back into `testcases.yaml`.
+  - If previous screenshot exists: use `screenshot`.
+2. Resolved baseline mode is persisted back into `testcases.yaml`.
 
 ### Step 4: Per-Test Execution
 
@@ -78,8 +78,8 @@ For each selected test:
 
 1. Determine viewport size from `device`.
 2. Prepare Figma baseline image:
-   - If download is needed and (`figma_access_token` + `figma_file_id` + `figma_node_id`) are present: call Figma API and save image.
-   - If `figma_file_id` or `figma_node_id` is blank: skip API call and use manually provided local Figma image.
+  - If `--fetch-figma` is used and (`figma_access_token` + `figma_file_id`) are present: call Figma API and fetch file JSON metadata.
+  - Baseline PNG is expected as a local file in `figma_images/`.
 3. Capture live screenshot if `--capture-screenshots` is enabled.
 4. Resolve comparison pair:
    - `figma` mode: baseline = Figma image, actual = latest screenshot.
@@ -110,15 +110,14 @@ Priority order:
 2. YAML `baseline_mode` if it is `figma` or `screenshot`
 3. Auto-detection behavior when YAML is `auto`
 
-### 3.3 Figma Download Logic
+### 3.3 Figma Metadata Fetch Logic
 
 Figma API is called only when all required values are present:
 
 - global/per-test `figma_access_token`
 - `figma_file_id`
-- `figma_node_id`
 
-If IDs are blank, API download is skipped and local baseline image is used.
+If values are blank, API call is skipped and local baseline image is used.
 
 ### 3.4 Comparison Logic
 
@@ -150,10 +149,10 @@ If IDs are blank, API download is skipped and local baseline image is used.
 
 ### 5.1 Primary Outputs
 
-- HTML report: `projects/<project>/reports/report_*.html`
+- HTML report: `projects/<project>/reports/<report_name>/report.html`
 - Diff images: `projects/<project>/diffs/<test_name>/`
 - Captured screenshots: `projects/<project>/screenshots/`
-- Downloaded/manual Figma images: `projects/<project>/figma_images/`
+- Manual Figma images: `projects/<project>/figma_images/`
 
 ### 5.2 Runtime Output
 
@@ -168,8 +167,8 @@ If IDs are blank, API download is skipped and local baseline image is used.
 | Situation | Behavior |
 |---|---|
 | First run, no screenshots | Use Figma baseline |
-| Subsequent run, `baseline_mode=auto` | Ask user: Figma or previous screenshot, then persist choice |
-| `figma_file_id` or `figma_node_id` missing | Skip Figma API call |
+| Subsequent run, `baseline_mode=auto` | Use previous screenshot, then persist choice |
+| `figma_file_id` missing | Skip Figma API call |
 | Manual Figma file exists | Use manual file for comparison |
 | Screenshot baseline unavailable | Fallback to Figma baseline if available |
 | Named test in `run_mode` not found | Stop with validation error |

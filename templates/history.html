@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- htmlhint inline-style-disabled:false, script-disabled:false -->
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="auto">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,21 +12,40 @@
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <style>
-    /* ── Base ───────────────────────────────────────────────────── */
-    :root {
+    /* ── Theme Support ──────────────────────────────────────────── */
+    /* Light Theme */
+    [data-bs-theme="light"] {
+      --pass-color  : #1a7d3d;
+      --fail-color  : #c92a2a;
+      --skip-color  : #5a6a8a;
+      --error-color : #d9480f;
+      --card-bg     : #f8f9fa;
+      --header-bg   : #f1f3f5;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --border-color: #dee2e6;
+      --bg-primary  : #ffffff;
+    }
+    
+    /* Dark Theme */
+    [data-bs-theme="dark"] {
       --pass-color  : #3dd68c;
       --fail-color  : #f2545b;
       --skip-color  : #8a9bb0;
       --error-color : #f0a500;
       --card-bg     : #1e2535;
       --header-bg   : #151b2e;
+      --text-primary: #d0d8e8;
+      --text-secondary: #7a8aaa;
+      --border-color: #2a3550;
+      --bg-primary  : #111827;
     }
     
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body {
-      background: #111827;
-      color: #d0d8e8;
+      background: light-dark(#ffffff, #111827);
+      color: light-dark(#212529, #d0d8e8);
       font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
       line-height: 1.5;
     }
@@ -34,7 +53,7 @@
     /* ── Header ─────────────────────────────────────────────────── */
     .history-header {
       background: var(--header-bg);
-      border-bottom: 2px solid #2a3550;
+      border-bottom: 2px solid var(--border-color);
       padding: 2rem 2.5rem;
       margin-bottom: 2rem;
     }
@@ -42,7 +61,7 @@
     .history-header h1 {
       font-size: 2rem;
       font-weight: 700;
-      color: #e8edf5;
+      color: var(--text-primary);
       margin: 0 0 0.5rem 0;
       display: flex;
       align-items: center;
@@ -56,7 +75,7 @@
 
     .history-header .meta {
       font-size: 0.85rem;
-      color: #7a8aaa;
+      color: var(--text-secondary);
       margin-top: 0.5rem;
     }
 
@@ -72,7 +91,7 @@
       background: var(--card-bg);
       border-radius: 10px;
       padding: 1.2rem 1.5rem;
-      border: 1px solid #2a3550;
+      border: 1px solid var(--border-color);
       text-align: center;
     }
 
@@ -87,7 +106,7 @@
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #7a8aaa;
+      color: var(--text-secondary);
       margin-top: 0.5rem;
     }
 
@@ -99,7 +118,7 @@
     .execution-list-title {
       font-size: 1.1rem;
       font-weight: 600;
-      color: #e8edf5;
+      color: var(--text-primary);
       margin-bottom: 1.2rem;
       display: flex;
       align-items: center;
@@ -115,7 +134,7 @@
     /* ── Execution item ─────────────────────────────────────────── */
     .execution-item {
       background: var(--card-bg);
-      border: 1px solid #2a3550;
+      border: 1px solid var(--border-color);
       border-radius: 10px;
       overflow: hidden;
       transition: all 0.2s ease;
@@ -123,14 +142,14 @@
     }
 
     .execution-item:hover {
-      border-color: #3d5080;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      border-color: light-dark(rgba(0, 0, 0, 0.2), #3d5080);
+      box-shadow: 0 4px 12px light-dark(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3));
       transform: translateY(-2px);
     }
 
     .execution-header {
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr 0.5fr;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr;
       gap: 1.5rem;
       align-items: center;
       padding: 1.2rem 1.5rem;
@@ -138,7 +157,7 @@
     }
 
     .execution-header:hover {
-      background: rgba(255, 255, 255, 0.02);
+      background: light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.02));
     }
 
     .execution-timestamp {
@@ -150,12 +169,12 @@
     .execution-timestamp .date {
       font-size: 0.9rem;
       font-weight: 600;
-      color: #e0e8f5;
+      color: var(--text-primary);
     }
 
     .execution-timestamp .time {
       font-size: 0.8rem;
-      color: #7a8aaa;
+      color: var(--text-secondary);
     }
 
     .execution-meta {
@@ -169,14 +188,20 @@
       font-size: 0.7rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: #5a6a8a;
+      color: var(--text-secondary);
     }
 
     .execution-meta .value {
       font-size: 1.1rem;
       font-weight: 700;
-      color: #d0d8e8;
+      color: var(--text-primary);
     }
+
+    /* Status colors for stats */
+    .execution-meta.stat-passed .value { color: var(--pass-color); }
+    .execution-meta.stat-failed .value { color: var(--fail-color); }
+    .execution-meta.stat-skipped .value { color: var(--skip-color); }
+    .execution-meta.stat-errors .value { color: var(--error-color); }
 
     .execution-actions {
       display: flex;
@@ -185,8 +210,8 @@
     }
 
     .action-btn {
-      background: #2a3550;
-      border: none;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       padding: 0.5rem 1rem;
       color: #7eb8f7;
@@ -202,7 +227,7 @@
     }
 
     .action-btn:hover {
-      background: #3d5080;
+      background: light-dark(rgba(0, 0, 0, 0.1), #3d5080);
       color: #fff;
       text-decoration: none;
     }
@@ -214,8 +239,8 @@
     .execute-details {
       display: none;
       padding: 0 1.5rem 1.2rem 1.5rem;
-      border-top: 1px solid #2a3550;
-      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid var(--border-color);
+      background: light-dark(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.2));
     }
 
     .execute-details.show {
@@ -235,7 +260,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: #7a8aaa;
+      color: var(--text-secondary);
       margin-bottom: 0.5rem;
     }
 
@@ -246,12 +271,12 @@
     }
 
     .log-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid #2a3550;
+      background: light-dark(rgba(0, 0, 0, 0.03), rgba(255, 255, 255, 0.03));
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       padding: 0.6rem 0.8rem;
       font-size: 0.85rem;
-      color: #a0b0d0;
+      color: var(--text-secondary);
       text-decoration: none;
       transition: all 0.2s;
       display: flex;
@@ -260,7 +285,7 @@
     }
 
     .log-item:hover {
-      background: rgba(126, 184, 247, 0.1);
+      background: light-dark(rgba(0, 0, 0, 0.08), rgba(126, 184, 247, 0.1));
       border-color: #7eb8f7;
       color: #7eb8f7;
       text-decoration: none;
@@ -275,18 +300,18 @@
     .empty-state {
       text-align: center;
       padding: 3rem 2rem;
-      color: #7a8aaa;
+      color: var(--text-secondary);
     }
 
     .empty-state i {
       font-size: 3rem;
-      color: #2a3550;
+      color: var(--border-color);
       margin-bottom: 1rem;
       display: block;
     }
 
     .empty-state h3 {
-      color: #d0d8e8;
+      color: var(--text-primary);
       margin-bottom: 0.5rem;
     }
 
@@ -294,12 +319,19 @@
     .history-footer {
       text-align: center;
       padding: 2rem;
-      color: #5a6a8a;
+      color: var(--text-secondary);
       font-size: 0.8rem;
-      border-top: 1px solid #2a3550;
+      border-top: 1px solid var(--border-color);
     }
 
     /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 1200px) {
+      .execution-header {
+        grid-template-columns: 1.5fr 1fr 1fr 1fr 0.5fr;
+        gap: 1rem;
+      }
+    }
+
     @media (max-width: 1024px) {
       .execution-header {
         grid-template-columns: 1.5fr 1fr 1fr;
@@ -310,6 +342,10 @@
         grid-column: 1 / -1;
         justify-content: flex-start;
         margin-top: 0.5rem;
+      }
+
+      .execution-meta.stat-errors {
+        display: none;
       }
     }
 
@@ -339,6 +375,10 @@
       .execution-actions {
         grid-column: auto;
         justify-content: flex-start;
+      }
+
+      .execution-meta.stat-skipped {
+        display: none;
       }
     }
   </style>
@@ -390,19 +430,32 @@
               </div>
 
               <div class="execution-meta">
-                <div class="label">Tests</div>
-                <div class="value">{{ report.test_count or '?' }}</div>
+                <div class="label">Total Tests</div>
+                <div class="value">{{ report.summary.total if report.summary else report.test_count or '?' }}</div>
               </div>
 
-              <div class="execution-meta">
-                <div class="label">Execution ID</div>
-                <div class="value" style="font-size: 0.9rem; font-family: monospace;">
-                  {{ report.name }}
-                </div>
+              <div class="execution-meta stat-passed">
+                <div class="label">Passed</div>
+                <div class="value">{% if report.summary %}{{ report.summary.passed }}{% else %}—{% endif %}</div>
+              </div>
+
+              <div class="execution-meta stat-failed">
+                <div class="label">Failed</div>
+                <div class="value">{% if report.summary %}{{ report.summary.failed }}{% else %}—{% endif %}</div>
+              </div>
+
+              <div class="execution-meta stat-skipped">
+                <div class="label">Skipped</div>
+                <div class="value">{% if report.summary %}{{ report.summary.skipped }}{% else %}—{% endif %}</div>
+              </div>
+
+              <div class="execution-meta stat-errors" style="display: none;">
+                <div class="label">Errors</div>
+                <div class="value">{% if report.summary %}{{ report.summary.errors }}{% else %}—{% endif %}</div>
               </div>
 
               <div style="text-align: right;">
-                <i class="bi bi-chevron-down" style="color: #5a6a8a; font-size: 1.2rem;"></i>
+                <i class="bi bi-chevron-down" style="color: var(--text-secondary); font-size: 1.2rem;"></i>
               </div>
             </div>
 
@@ -436,7 +489,7 @@
 
               <div class="detail-section">
                 <div class="detail-title">Details</div>
-                <div style="font-size: 0.85rem; color: #a0b0d0; font-family: monospace;">
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-family: monospace;">
                   <div>Execution ID: {{ report.name }}</div>
                   <div>Timestamp: {{ report.timestamp }}</div>
                   <div>Directory: {{ report.relative_dir }}</div>
@@ -486,6 +539,29 @@
         // toggleDetails(firstItem);
       }
     });
+
+    // ── Theme Detection ─────────────────────────────────────────────
+    function detectAndApplyTheme() {
+      // Check system preference
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const theme = prefersDark ? "dark" : "light";
+      
+      // Apply to html element
+      document.documentElement.setAttribute("data-bs-theme", theme);
+      
+      // Listen for changes in system theme
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+        const newTheme = e.matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-bs-theme", newTheme);
+      });
+    }
+
+    // Apply theme on load
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", detectAndApplyTheme);
+    } else {
+      detectAndApplyTheme();
+    }
   </script>
 </body>
 

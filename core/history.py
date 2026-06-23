@@ -3,6 +3,7 @@ Generates a history index page listing all past test executions.
 Allows users to navigate and view previous reports and logs.
 """
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -92,12 +93,27 @@ class HistoryGenerator:
             if not report_html.exists():
                 return None
             
+            # Try to read metadata.json first
+            metadata_file = report_dir / "metadata.json"
+            summary = None
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, "r", encoding="utf-8") as fh:
+                        metadata = json.load(fh)
+                        summary = metadata.get("summary", {})
+                except Exception as e:
+                    logger.debug(f"Failed to read metadata.json from {report_dir}: {e}")
+            
             # Find logs associated with this report.
             # Logs are stored at project-level logs/ directory, not inside each report folder.
             log_files = self._find_logs_for_report(report_dir.name)
             
-            # Count test results from report.html if possible
-            test_count = self._count_tests(report_html)
+            # Count test results from report.html if possible (fallback)
+            test_count = None
+            if summary:
+                test_count = summary.get("total")
+            if test_count is None:
+                test_count = self._count_tests(report_html)
             
             return {
                 "name": report_dir.name,
@@ -110,6 +126,7 @@ class HistoryGenerator:
                 "log_files": log_files,
                 "test_count": test_count,
                 "relative_dir": report_dir.name,
+                "summary": summary if summary else {},  # Add summary stats
             }
         except Exception as e:
             logger.debug(f"Error extracting report data from {report_dir}: {e}")

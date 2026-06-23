@@ -4,6 +4,7 @@ Images are stored in a separate 'images' subfolder with relative paths.
 Logs report generation progress and file paths.
 """
 
+import json
 import os
 import shutil
 from datetime import datetime
@@ -125,6 +126,18 @@ class ReportGenerator:
         with open(report_path, "w", encoding="utf-8") as fh:
             fh.write(html)
         logger.info(f"HTML report generated: {report_path} ({len(html)} bytes, images in ./images/)")
+
+        # Save metadata.json alongside report.html
+        metadata = {
+            "timestamp": ts.isoformat(),
+            "generated_at": ts.strftime("%Y-%m-%d %H:%M:%S"),
+            "project": self.project,
+            "summary": summary,
+        }
+        metadata_path = str(report_dir / "metadata.json")
+        with open(metadata_path, "w", encoding="utf-8") as fh:
+            json.dump(metadata, fh, indent=2)
+        logger.debug(f"Metadata saved: {metadata_path}")
 
         # Generate history index
         try:

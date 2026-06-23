@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- htmlhint inline-style-disabled:false, script-disabled:false -->
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="auto">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,25 +12,47 @@
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <style>
-    /* ── Base ───────────────────────────────────────────────────── */
-    :root {
+    /* ── Theme Support ──────────────────────────────────────────── */
+    /* Light Theme */
+    [data-bs-theme="light"] {
+      --pass-color  : #1a7d3d;
+      --fail-color  : #c92a2a;
+      --skip-color  : #5a6a8a;
+      --error-color : #d9480f;
+      --card-bg     : #f8f9fa;
+      --header-bg   : #f1f3f5;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --border-color: #dee2e6;
+    }
+    
+    /* Dark Theme */
+    [data-bs-theme="dark"] {
       --pass-color  : #3dd68c;
       --fail-color  : #f2545b;
       --skip-color  : #8a9bb0;
       --error-color : #f0a500;
       --card-bg     : #1e2535;
       --header-bg   : #151b2e;
+      --text-primary: #d0d8e8;
+      --text-secondary: #7a8aaa;
+      --border-color: #2a3550;
     }
-    body { background: #111827; color: #d0d8e8; font-family: 'Segoe UI', sans-serif; }
+    
+    body { 
+      background: light-dark(#ffffff, #111827); 
+      color: light-dark(#212529, #d0d8e8); 
+      font-family: 'Segoe UI', sans-serif; 
+    }
 
     /* ── Header ─────────────────────────────────────────────────── */
     .report-header {
       background: var(--header-bg);
-      border-bottom: 2px solid #2a3550;
+      border-bottom: 2px solid var(--border-color);
       padding: 1.8rem 2rem 1.4rem;
     }
-    .report-header h1 { font-size: 1.55rem; font-weight: 700; color: #e8edf5; margin: 0; }
-    .report-header .meta { font-size: .82rem; color: #7a8aaa; margin-top: .3rem; }
+    .report-header h1 { font-size: 1.55rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .report-header .meta { font-size: .82rem; color: var(--text-secondary); margin-top: .3rem; }
 
     /* ── Summary cards ──────────────────────────────────────────── */
     .stat-card {
@@ -38,11 +60,11 @@
       border-radius: 10px;
       padding: 1.1rem 1.4rem;
       text-align: center;
-      border: 1px solid #2a3550;
+      border: 1px solid var(--border-color);
     }
     .stat-card .stat-num { font-size: 2.2rem; font-weight: 800; line-height: 1; }
     .stat-card .stat-lbl { font-size: .75rem; text-transform: uppercase;
-                           letter-spacing: .08em; color: #7a8aaa; margin-top: .3rem; }
+                           letter-spacing: .08em; color: var(--text-secondary); margin-top: .3rem; }
     .stat-passed  .stat-num { color: var(--pass-color); }
     .stat-failed  .stat-num { color: var(--fail-color); }
     .stat-skipped .stat-num { color: var(--skip-color); }
@@ -57,13 +79,13 @@
     /* ── Test cards ─────────────────────────────────────────────── */
     .test-card {
       background: var(--card-bg);
-      border: 1px solid #2a3550;
+      border: 1px solid var(--border-color);
       border-radius: 10px;
       margin-bottom: 1rem;
       overflow: hidden;
       transition: border-color .2s;
     }
-    .test-card:hover { border-color: #3d5080; }
+    .test-card:hover { border-color: light-dark(rgba(0, 0, 0, 0.2), #3d5080); }
 
     .test-card-header {
       cursor: pointer;
@@ -72,7 +94,7 @@
       align-items: center;
       gap: .75rem;
     }
-    .test-card-header:hover { background: rgba(255,255,255,.03); }
+    .test-card-header:hover { background: light-dark(rgba(0, 0, 0, 0.03), rgba(255,255,255,.03)); }
 
     .badge-status {
       font-size: .72rem;
@@ -83,25 +105,25 @@
       letter-spacing: .06em;
       white-space: nowrap;
     }
-    .badge-passed  { background: rgba(61,214,140,.15); color: var(--pass-color);  border: 1px solid var(--pass-color); }
-    .badge-failed  { background: rgba(242,84,91,.15);  color: var(--fail-color);  border: 1px solid var(--fail-color); }
-    .badge-skipped { background: rgba(138,155,176,.15);color: var(--skip-color);  border: 1px solid var(--skip-color); }
-    .badge-error   { background: rgba(240,165,0,.15);  color: var(--error-color); border: 1px solid var(--error-color);}
+    .badge-passed  { background: light-dark(rgba(26,125,61,.15), rgba(61,214,140,.15)); color: var(--pass-color);  border: 1px solid var(--pass-color); }
+    .badge-failed  { background: light-dark(rgba(201,42,42,.15), rgba(242,84,91,.15));  color: var(--fail-color);  border: 1px solid var(--fail-color); }
+    .badge-skipped { background: light-dark(rgba(90,106,138,.15), rgba(138,155,176,.15));color: var(--skip-color);  border: 1px solid var(--skip-color); }
+    .badge-error   { background: light-dark(rgba(217,72,15,.15), rgba(240,165,0,.15));  color: var(--error-color); border: 1px solid var(--error-color);}
 
-    .test-name { font-weight: 600; font-size: .97rem; color: #e0e8f5; flex: 1; min-width: 0; }
-    .test-meta { font-size: .78rem; color: #7a8aaa; white-space: nowrap; }
+    .test-name { font-weight: 600; font-size: .97rem; color: var(--text-primary); flex: 1; min-width: 0; }
+    .test-meta { font-size: .78rem; color: var(--text-secondary); white-space: nowrap; }
 
     /* Similarity progress bar */
     .similarity-bar-wrap { width: 130px; flex-shrink: 0; }
-    .similarity-bar-wrap .label { font-size: .74rem; color: #8a9bb0; margin-bottom: 2px; text-align: right; }
-    .sim-progress { height: 6px; border-radius: 3px; background: #2a3550; overflow: hidden; }
+    .similarity-bar-wrap .label { font-size: .74rem; color: var(--text-secondary); margin-bottom: 2px; text-align: right; }
+    .sim-progress { height: 6px; border-radius: 3px; background: var(--border-color); overflow: hidden; }
     .sim-fill { height: 100%; border-radius: 3px; transition: width .4s; }
 
-    .chevron { transition: transform .25s; color: #5a6a8a; font-size: 1rem; flex-shrink: 0; }
+    .chevron { transition: transform .25s; color: var(--text-secondary); font-size: 1rem; flex-shrink: 0; }
     .collapsed .chevron { transform: rotate(-90deg); }
 
     /* ── Image comparison panel ─────────────────────────────────── */
-    .comparison-body { padding: 1.2rem 1.4rem 1.4rem; border-top: 1px solid #2a3550; }
+    .comparison-body { padding: 1.2rem 1.4rem 1.4rem; border-top: 1px solid var(--border-color); }
 
     .view-toggle { gap: .5rem; }
     .view-toggle .btn { font-size: .78rem; padding: .25rem .7rem; }
@@ -111,20 +133,20 @@
     .img-panel { flex: 1 1 28%; min-width: 200px; }
     .img-panel-label {
       font-size: .74rem; text-transform: uppercase; letter-spacing: .08em;
-      color: #8a9bb0; margin-bottom: .4rem; font-weight: 600;
+      color: var(--text-secondary); margin-bottom: .4rem; font-weight: 600;
     }
     .img-panel img {
-      width: 100%; border-radius: 6px; border: 1px solid #2a3550;
+      width: 100%; border-radius: 6px; border: 1px solid var(--border-color);
       cursor: zoom-in; transition: border-color .2s;
     }
-    .img-panel img:hover { border-color: #4d6aa0; }
+    .img-panel img:hover { border-color: light-dark(rgba(0, 0, 0, 0.3), #4d6aa0); }
 
     /* Slider comparison */
     .slider-view { display: none; margin-top: .8rem; }
     .slider-view.active { display: block; }
     .img-compare-container {
       position: relative; overflow: hidden; cursor: ew-resize;
-      border-radius: 6px; border: 1px solid #2a3550; user-select: none;
+      border-radius: 6px; border: 1px solid var(--border-color); user-select: none;
     }
     .img-compare-container img { display: block; width: 100%; pointer-events: none; }
     .img-compare-overlay {
@@ -157,26 +179,26 @@
       margin-bottom: .8rem;
     }
     .meta-chip {
-      font-size: .74rem; background: #0d1422; border: 1px solid #2a3550;
-      border-radius: 5px; padding: .18rem .55rem; color: #8a9bb0;
+      font-size: .74rem; background: light-dark(#f8f9fa, #0d1422); border: 1px solid var(--border-color);
+      border-radius: 5px; padding: .18rem .55rem; color: var(--text-secondary);
     }
-    .meta-chip span { color: #b0c4de; }
+    .meta-chip span { color: var(--text-primary); }
 
     /* ── Error / skip message ───────────────────────────────────── */
     .error-box {
-      background: rgba(240,165,0,.08); border: 1px solid rgba(240,165,0,.3);
-      border-radius: 6px; padding: .7rem 1rem; font-size: .85rem; color: #f0c060;
+      background: light-dark(rgba(217,72,15,.08), rgba(240,165,0,.08)); border: 1px solid light-dark(rgba(217,72,15,.3), rgba(240,165,0,.3));
+      border-radius: 6px; padding: .7rem 1rem; font-size: .85rem; color: var(--error-color);
     }
     .skip-box {
-      background: rgba(138,155,176,.07); border: 1px solid rgba(138,155,176,.2);
-      border-radius: 6px; padding: .7rem 1rem; font-size: .85rem; color: #7a8aaa;
+      background: light-dark(rgba(90,106,138,.07), rgba(138,155,176,.07)); border: 1px solid light-dark(rgba(90,106,138,.2), rgba(138,155,176,.2));
+      border-radius: 6px; padding: .7rem 1rem; font-size: .85rem; color: var(--text-secondary);
     }
 
     /* ── Full-size image modal ──────────────────────────────────── */
     #imgModal .modal-dialog { max-width: 95vw; }
     #imgModal .modal-body { padding: 0; }
     #imgModal img { width: 100%; border-radius: 0 0 4px 4px; display: block; }
-    #imgModal .modal-header { background: #1e2535; border-bottom: 1px solid #2a3550; }
+    #imgModal .modal-header { background: var(--card-bg); border-bottom: 1px solid var(--border-color); }
     #imgModal.is-open {
       display: block;
       background: rgba(0,0,0,.72);
@@ -604,6 +626,29 @@ document.addEventListener("keydown", event => {
 });
 
 document.querySelector('#imgModal [data-bs-dismiss="modal"]').addEventListener("click", closeModal);
+
+// ── Theme Detection ─────────────────────────────────────────────
+function detectAndApplyTheme() {
+  // Check system preference
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const theme = prefersDark ? "dark" : "light";
+  
+  // Apply to html element
+  document.documentElement.setAttribute("data-bs-theme", theme);
+  
+  // Listen for changes in system theme
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+    const newTheme = e.matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-bs-theme", newTheme);
+  });
+}
+
+// Apply theme on load
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", detectAndApplyTheme);
+} else {
+  detectAndApplyTheme();
+}
 </script>
 </body>
 </html>

@@ -79,6 +79,22 @@ class ScreenshotCapture:
             )
             time.sleep(self.page_data_load_wait)  # Ensure late dynamic content is rendered.
 
+            # Scroll the page using JavaScript until reaching the end
+            logger.debug("Starting page scroll to load all content")
+            last_height = driver.execute_script("return document.body.scrollHeight")
+            
+            while True:
+                # Scroll down using JavaScript
+                driver.execute_script("window.scrollBy(0, 500)")
+                time.sleep(0.3)  # Wait for content to load
+                
+                # Get new height
+                new_height = driver.execute_script("return document.body.scrollHeight")
+                if new_height == last_height:
+                    logger.debug("Reached end of page")
+                    break
+                last_height = new_height
+
             # Expand window to full document height for a full-page capture
             total_height = driver.execute_script(
                 "return Math.max("

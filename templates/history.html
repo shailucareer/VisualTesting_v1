@@ -149,7 +149,7 @@
 
     .execution-header {
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 0.5fr;
       gap: 1.5rem;
       align-items: center;
       padding: 1.2rem 1.5rem;
@@ -201,7 +201,7 @@
     .execution-meta.stat-passed .value { color: var(--pass-color); }
     .execution-meta.stat-failed .value { color: var(--fail-color); }
     .execution-meta.stat-skipped .value { color: var(--skip-color); }
-    .execution-meta.stat-errors .value { color: var(--error-color); }
+    .execution-meta.stat-error .value { color: var(--error-color); }
 
     .execution-actions {
       display: flex;
@@ -327,14 +327,14 @@
     /* ── Responsive ─────────────────────────────────────────────── */
     @media (max-width: 1200px) {
       .execution-header {
-        grid-template-columns: 1.5fr 1fr 1fr 1fr 0.5fr;
+        grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 0.5fr;
         gap: 1rem;
       }
     }
 
     @media (max-width: 1024px) {
       .execution-header {
-        grid-template-columns: 1.5fr 1fr 1fr;
+        grid-template-columns: 1.5fr 1fr 1fr 1fr 0.5fr;
         gap: 1rem;
       }
 
@@ -342,10 +342,6 @@
         grid-column: 1 / -1;
         justify-content: flex-start;
         margin-top: 0.5rem;
-      }
-
-      .execution-meta.stat-errors {
-        display: none;
       }
     }
 
@@ -368,7 +364,7 @@
       }
 
       .execution-header {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1.5fr 1fr 1fr 0.5fr;
         gap: 0.75rem;
       }
 
@@ -377,7 +373,8 @@
         justify-content: flex-start;
       }
 
-      .execution-meta.stat-skipped {
+      .execution-meta.stat-skipped,
+      .execution-meta.stat-error {
         display: none;
       }
     }
@@ -406,8 +403,20 @@
       <div class="stat-lbl">Total Executions</div>
     </div>
     <div class="stat-card">
-      <div class="stat-num">{{ reports[0].date if reports else '—' }}</div>
-      <div class="stat-lbl">Latest Execution</div>
+      <div class="stat-num" style="color: var(--pass-color);">{{ reports|map(attribute='summary')|map(attribute='passed')|sum }}</div>
+      <div class="stat-lbl">Total Passed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--fail-color);">{{ reports|map(attribute='summary')|map(attribute='failed')|sum }}</div>
+      <div class="stat-lbl">Total Failed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--error-color);">{{ reports|map(attribute='summary')|map(attribute='errors')|sum }}</div>
+      <div class="stat-lbl">Total Errors</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--skip-color);">{{ reports|map(attribute='summary')|map(attribute='skipped')|sum }}</div>
+      <div class="stat-lbl">Total Skipped</div>
     </div>
   </div>
 
@@ -449,7 +458,7 @@
                 <div class="value">{% if report.summary %}{{ report.summary.skipped }}{% else %}—{% endif %}</div>
               </div>
 
-              <div class="execution-meta stat-errors" style="display: none;">
+              <div class="execution-meta stat-error">
                 <div class="label">Errors</div>
                 <div class="value">{% if report.summary %}{{ report.summary.errors }}{% else %}—{% endif %}</div>
               </div>

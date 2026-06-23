@@ -79,21 +79,30 @@ class ScreenshotCapture:
             )
             time.sleep(self.page_data_load_wait)  # Ensure late dynamic content is rendered.
 
-            # Scroll the page using JavaScript until reaching the end
+            # Scroll the page incrementally to trigger lazy-loading content.
+            # Uses absolute scrollTo positions + explicit scroll event dispatch to
+            # ensure IntersectionObserver and scroll-event listeners fire correctly.
             logger.debug("Starting page scroll to load all content")
-            last_height = driver.execute_script("return document.body.scrollHeight")
-            
+            current_pos = 0
+            scroll_step = height  # One viewport height per step
+
             while True:
-                # Scroll down using JavaScript
-                driver.execute_script("window.scrollBy(0, 500)")
-                time.sleep(0.3)  # Wait for content to load
-                
-                # Get new height
-                new_height = driver.execute_script("return document.body.scrollHeight")
-                if new_height == last_height:
+                current_pos += scroll_step
+                driver.execute_script(
+                    "window.scrollTo(0, arguments[0]);"
+                    "window.dispatchEvent(new Event('scroll'));"
+                    "document.dispatchEvent(new Event('scroll'));",
+                    current_pos,
+                )
+                time.sleep(0.6)  # Wait for lazy-loaded content to render
+
+                page_height = driver.execute_script("return document.body.scrollHeight")
+                if current_pos >= page_height:
                     logger.debug("Reached end of page")
                     break
-                last_height = new_height
+
+            # Wait for any final lazy content triggered by the last scroll
+            time.sleep(1.0)
 
             # Expand window to full document height for a full-page capture
             total_height = driver.execute_script(
@@ -106,6 +115,10 @@ class ScreenshotCapture:
             )
             driver.set_window_size(width, max(total_height, height))
             time.sleep(0.5)
+
+            # Scroll back to the very top after resize so the header is visible
+            driver.execute_script("window.scrollTo(0, 0);")
+            time.sleep(0.3)
 
             os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
             driver.save_screenshot(output_path)

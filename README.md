@@ -2,9 +2,6 @@
 
 Python-based visual regression framework for comparing live screenshots against baselines (Figma image files or previous screenshots), then generating HTML reports.
 
-#Mendetory cmd
-python main.py --project adarsh_GWL  --capture-screenshots
-
 ## What It Does
 
 - Captures live screenshots with Selenium (Chrome, Firefox, Edge)
@@ -92,48 +89,97 @@ Common fields:
   - `name`, `run`, `device`, `figma_file_name`, `url`
   - `figma_file_id` is optional and used by `--fetch-figma`
 
-## Run Commands
+## Quick Start
 
 ```bash
-# Default compare (no fresh capture)
-python main.py --project opinion_route
-
-# Capture new screenshots then compare
+# Capture new screenshots and compare
 python main.py --project opinion_route --capture-screenshots
-
-# Fetch Figma file JSON metadata
-python main.py --project opinion_route --fetch-figma
-
-# Regression against previous screenshot
-python main.py --project opinion_route --baseline-mode screenshot --capture-screenshots
-
-# Strict profile for local regressions
-python main.py --project opinion_route --capture-screenshots --threshold 0.95 --max-diff-pct 0.002 --tile-threshold 0.90
 ```
 
-## CLI Summary
+## CLI Arguments and Examples
 
-Required:
+This section covers all arguments currently supported by `main.py`.
 
-- `--project NAME`
+Project selection:
 
-Key optional flags:
+- `--project NAME` or `-p NAME` (required)
+
+```bash
+python main.py --project opinion_route
+python main.py -p opinion_route
+```
+
+Baseline behavior:
 
 - `--baseline-mode {auto|figma|screenshot}`
-- `--capture-screenshots`
-- `--fetch-figma`
+
+```bash
+python main.py --project opinion_route --baseline-mode auto
+python main.py --project opinion_route --baseline-mode figma
+python main.py --project opinion_route --baseline-mode screenshot
+```
+
+Comparison quality:
+
 - `--threshold FLOAT`
 - `--max-diff-pct FLOAT`
 - `--diff-sensitivity INT`
 - `--tile-threshold FLOAT`
 - `--tile-size INT`
+
+```bash
+python main.py --project opinion_route --threshold 0.92
+python main.py --project opinion_route --max-diff-pct 0.003
+python main.py --project opinion_route --diff-sensitivity 25
+python main.py --project opinion_route --tile-threshold 0.88
+python main.py --project opinion_route --tile-size 160
+```
+
+Display normalization:
+
 - `--dpr FLOAT`
+
+```bash
+python main.py --project opinion_route --dpr 2.0
+```
+
+Actions:
+
+- `--capture-screenshots`
+- `--fetch-figma`
+
+```bash
+python main.py --project opinion_route --capture-screenshots
+python main.py --project opinion_route --fetch-figma
+```
+
+Browser and timing:
+
 - `--browser {chrome|firefox|edge}`
 - `--no-headless`
-- `--page-load-wait SECONDS`
-- `--report-name NAME`
+- `--page-load-timeout SECONDS`
 
-Use:
+```bash
+python main.py --project opinion_route --browser firefox
+python main.py --project opinion_route --no-headless
+python main.py --project opinion_route --page-load-timeout 60
+```
+
+Reporting:
+
+- `--report-name FILENAME`
+
+```bash
+python main.py --project opinion_route --report-name run_local.html
+```
+
+Combined end-to-end example:
+
+```bash
+python main.py --project opinion_route --baseline-mode screenshot --capture-screenshots --threshold 0.95 --max-diff-pct 0.002 --diff-sensitivity 25 --tile-threshold 0.90 --tile-size 180 --dpr 2.0 --browser chrome --page-load-timeout 60 --report-name strict_regression.html
+```
+
+Print built-in CLI help:
 
 ```bash
 python main.py --help

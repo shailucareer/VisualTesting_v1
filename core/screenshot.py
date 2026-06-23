@@ -38,12 +38,14 @@ class ScreenshotCapture:
         browser: str = "chrome",
         headless: bool = True,
         dpr: float = 1.0,
-        page_load_wait: int = 3,
+        page_load_timeout: int = 60,
+        page_data_load_wait: int = 3,
     ):
         self.browser = browser.lower()
         self.headless = headless
         self.dpr = dpr
-        self.page_load_wait = page_load_wait
+        self.page_load_timeout = page_load_timeout
+        self.page_data_load_wait = page_data_load_wait
 
     # ------------------------------------------------------------------
     # Public API
@@ -67,11 +69,15 @@ class ScreenshotCapture:
         logger.info(f"Starting screenshot capture: browser={self.browser}, resolution={width}×{height}, dpr={self.dpr}")
         driver = self._create_driver(width, height)
         try:
+            driver.set_page_load_timeout(self.page_load_timeout)
+            logger.debug(f"Set page load timeout to {self.page_load_timeout} seconds")
             logger.debug(f"Navigating to URL: {url}")
             driver.get(url)
-            time.sleep(240)
-            logger.debug(f"Waiting {self.page_load_wait} seconds for page to settle")
-            time.sleep(self.page_load_wait)
+
+            logger.debug(
+                f"Waiting additional {self.page_data_load_wait} seconds for dynamic content"
+            )
+            time.sleep(self.page_data_load_wait)  # Ensure late dynamic content is rendered.
 
             # Expand window to full document height for a full-page capture
             total_height = driver.execute_script(

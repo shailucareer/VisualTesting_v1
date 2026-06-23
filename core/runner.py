@@ -36,6 +36,7 @@ class TestCase:
     figma_access_token: Optional[str] = None
     figma_file_id: Optional[str] = None
     figma_node_id: Optional[str] = None
+    page_data_load_wait: int = 3
 
 
 @dataclass
@@ -74,6 +75,7 @@ class TestRunner:
         "Mobile":        {"width": 375,  "height": 812},
         "Mobile Large":  {"width": 414,  "height": 896},
     }
+    DEFAULT_PAGE_DATA_LOAD_WAIT = 3
 
     def __init__(
         self,
@@ -90,7 +92,7 @@ class TestRunner:
         headless: bool = True,
         browser: str = "chrome",
         report_name: Optional[str] = None,
-        page_load_wait: int = 3,
+        page_load_timeout: int = 60,
     ):
         self.project = project
         self.requested_baseline_mode = baseline_mode
@@ -106,7 +108,7 @@ class TestRunner:
         self.headless = headless
         self.browser = browser
         self.report_name = report_name
-        self.page_load_wait = page_load_wait
+        self.page_load_timeout = page_load_timeout
         self.run_mode = "selected"
         self.target_test_name: Optional[str] = None
         self.config_baseline_mode = "auto"
@@ -215,6 +217,14 @@ class TestRunner:
             
             figma_node_id_raw = raw.get("figma_node_id")
             figma_node_id = "" if figma_node_id_raw is None else str(figma_node_id_raw).strip()
+
+            raw_page_data_load_wait = raw.get("page_data_load_wait", self.DEFAULT_PAGE_DATA_LOAD_WAIT)
+            page_data_load_wait = self._parse_wait_seconds(
+                raw_page_data_load_wait,
+                default=self.DEFAULT_PAGE_DATA_LOAD_WAIT,
+                field_name="page_data_load_wait",
+                test_case_name=raw.get("name", "<unnamed>"),
+            )
             
             cases.append(
                 TestCase(
@@ -228,6 +238,7 @@ class TestRunner:
                     figma_access_token=raw_token or global_figma_access_token,
                     figma_file_id=figma_file_id,
                     figma_node_id=figma_node_id,
+                    page_data_load_wait=page_data_load_wait,
                 )
             )
 
@@ -396,7 +407,8 @@ class TestRunner:
                     browser=self.browser,
                     headless=self.headless,
                     dpr=self.dpr,
-                    page_load_wait=self.page_load_wait,
+                    page_load_timeout=self.page_load_timeout,
+                    page_data_load_wait=tc.page_data_load_wait,
                 ).capture(
                     url=tc.url,
                     output_path=screenshot_path,
@@ -484,6 +496,44 @@ class TestRunner:
                 status="error",
                 error_message=str(exc),
             )
+
+    def _parse_wait_seconds(
+        self,
+        value,
+        *,
+        default: int,
+        field_name: str,
+        test_case_name: str,
+    ) -> int:
+        """
+        Parse wait seconds from YAML.
+
+        Blank/missing values fall back to *default*. Invalid/non-positive values
+        are ignored with a warning and also fall back to *default*.
+        """
+        if value is None:
+            return default
+
+        if isinstance(value, str) and not value.strip():
+            return default
+
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            logger.warning(
+                f"Invalid {field_name}='{value}' for test '{test_case_name}'. "
+                f"Defaulting to {default}s"
+            )
+            return default
+
+        if parsed < 0:
+            logger.warning(
+                f"Negative {field_name}='{value}' for test '{test_case_name}'. "
+                f"Defaulting to {default}s"
+            )
+            return default
+
+        return parsed
 
     # ------------------------------------------------------------------
     # Screenshot helpers

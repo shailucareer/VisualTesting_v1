@@ -11,6 +11,7 @@
 #                         Mobile Large (414×896)
 #   figma_file_name   : Filename for the downloaded / stored Figma PNG.
 #   url               : Live URL to screenshot with Selenium.
+#   page_data_load_wait: Extra wait in seconds for dynamic content (optional; default: 3).
 #   figma_access_token: Personal Figma access token (needed for --download-figma).
 #   figma_file_id     : The file key from the Figma URL  (.../file/<file_id>/...).
 #   figma_node_id     : Node ID in '1202-3193' or '1202:3193' format.
@@ -39,6 +40,7 @@ test_cases:
     device: Desktop
     figma_file_name: LandingPage.png
     url: https://pintaae.mylemonspace.com/
+    page_data_load_wait:
     figma_file_id: 
     figma_node_id: 
 

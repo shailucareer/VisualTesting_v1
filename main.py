@@ -53,7 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="auto",
         help=(
             "Baseline image source for comparison.\n"
-            "  auto       — first run uses Figma; if prior screenshots exist, prompt for choice (default).\n"
+            "  auto       — first run uses Figma; if prior screenshots exist, uses previous screenshot (default).\n"
             "  figma      — always use Figma design images.\n"
             "  screenshot — use the previous captured screenshot;\n"
             "               falls back to Figma if no prior screenshot exists."
@@ -152,11 +152,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show the browser window (useful for debugging).",
     )
     parser.add_argument(
-        "--page-load-wait",
+        "--page-load-timeout",
         type=int,
-        default=3,
+        default=60,
         metavar="SECONDS",
-        help="Seconds to wait after page load before capturing. Default: 3.",
+        help="Selenium page-load timeout in seconds. Default: 60.",
     )
 
     # ── Report ────────────────────────────────────────────────────
@@ -188,6 +188,11 @@ def validate_args(args, parser: argparse.ArgumentParser) -> None:
 
     if args.dpr <= 0:
         parser.error(f"--dpr must be positive, got {args.dpr}")
+
+    if args.page_load_timeout <= 0:
+        parser.error(
+            f"--page-load-timeout must be positive, got {args.page_load_timeout}"
+        )
 
     project_path = Path("projects") / args.project
     if not project_path.exists():
@@ -225,7 +230,7 @@ def main() -> None:
         headless=not args.no_headless,
         browser=args.browser,
         report_name=args.report_name,
-        page_load_wait=args.page_load_wait,
+        page_load_timeout=args.page_load_timeout,
     )
 
     success = runner.run()

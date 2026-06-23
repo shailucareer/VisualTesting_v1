@@ -20,7 +20,7 @@ Primary CLI options:
 - `--fetch-figma` (optional): fetch Figma file JSON metadata
 - `--threshold` (optional): SSIM pass threshold
 - `--dpr` (optional): device pixel ratio normalization factor
-- `--browser`, `--no-headless`, `--page-load-wait` (optional): capture behavior
+- `--browser`, `--no-headless`, `--page-load-timeout` (optional): capture behavior
 - `--report-name` (optional): custom report file name
 
 ### 1.2 Project Configuration Input

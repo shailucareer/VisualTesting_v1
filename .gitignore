@@ -9,13 +9,8 @@ __pycache__/
 .venv/
 venv/
 .env
+.slingshot/
 
 # WebDriver cache
 .wdm/
-/.idea/inspectionProfiles/profiles_settings.xml
-/.idea/.gitignore
-/.idea/copilot.data.migration.agent.xml
-/.idea/misc.xml
-/.idea/modules.xml
-/.idea/vcs.xml
-/.idea/VisualTesting_v3.iml
+/.idea/

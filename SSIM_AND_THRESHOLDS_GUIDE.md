@@ -95,7 +95,7 @@ Test fails but change looks acceptable:
 
 Page captured too early:
 
-- Increase `--page-load-wait`
+- Increase `--page-data-load-wait` in `testcases.yaml` for the specific test case, or increase `--page-load-timeout` if navigation itself times out.
 
 Browser instability in headless mode:
 

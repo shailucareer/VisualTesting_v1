@@ -29,7 +29,7 @@
 #   figma_access_token: 'figd_xxx'
 
 run_mode: 'selected'
-baseline_mode: 'screenshot'
+baseline_mode: 'figma'
 figma_access_token:
 
 test_cases:

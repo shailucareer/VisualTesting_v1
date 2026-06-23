@@ -2,6 +2,9 @@
 
 Python-based visual regression framework for comparing live screenshots against baselines (Figma image files or previous screenshots), then generating HTML reports.
 
+#Mendetory cmd
+python main.py --project adarsh_GWL  --capture-screenshots
+
 ## What It Does
 
 - Captures live screenshots with Selenium (Chrome, Firefox, Edge)

@@ -1,0 +1,52 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# testcases.yaml  —  Visual test cases for the "opinion_route" sub-project
+#
+# Fields per test case
+# ─────────────────────
+#   name              : Unique identifier used in filenames and the HTML report.
+#   run               : Set to false to skip this test case entirely.
+#   device            : Viewport preset.  One of:
+#                         Desktop (1440×900) | Desktop Large (1920×1080)
+#                         Tablet (768×1024)  | Mobile (375×812)
+#                         Mobile Large (414×896)
+#   figma_file_name   : Filename for the downloaded / stored Figma PNG.
+#   url               : Live URL to screenshot with Selenium.
+#   figma_access_token: Personal Figma access token (needed for --download-figma).
+#   figma_file_id     : The file key from the Figma URL  (.../file/<file_id>/...).
+#   figma_node_id     : Node ID in '1202-3193' or '1202:3193' format.
+# ──────────────────────────────────────────────────────────────────────────────
+# Project Test Configuration
+# ============================
+# Test Execution Control - Use one of these options:
+#   run_mode: 'all'           # Run all tests listed below
+#   run_mode: 'selected'      # Run only tests marked with run: true
+#   run_mode: 'test_name'     # Run a specific test by name (e.g., 'run_mode: desktop_qcflow')
+# Baseline Selection Control:
+#   baseline_mode: 'auto'       # First run uses Figma; later prompts and persists your choice
+#   baseline_mode: 'figma'      # Always use provided Figma image as baseline
+#   baseline_mode: 'screenshot' # Always use last execution screenshot as baseline
+# Figma Access Token (global for all test cases):
+#   figma_access_token: 'figd_xxx'
+
+run_mode: 'all'
+baseline_mode: 'figma'
+figma_access_token:
+
+test_cases:
+
+  - name: desktop_home
+    run: true
+    device: Desktop
+    figma_file_name: LandingPage.png
+    url: https://pintaae.mylemonspace.com/
+    figma_file_id: 
+    figma_node_id: 
+
+  # Example: mobile variant of the same page (add your own node_id)
+  # - name: mobile_qcflow
+  #   run: false
+  #   device: Mobile
+  #   figma_file_name: 375_figma.png
+  #   url: https://opinionroutstg.wpengine.com/qcflow
+  #   figma_file_id: hritOi8jFNn2Zvf6ilrZwB
+  #   figma_node_id: '1202-3200'

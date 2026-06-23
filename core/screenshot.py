@@ -69,6 +69,7 @@ class ScreenshotCapture:
         try:
             logger.debug(f"Navigating to URL: {url}")
             driver.get(url)
+            time.sleep(240)
             logger.debug(f"Waiting {self.page_load_wait} seconds for page to settle")
             time.sleep(self.page_load_wait)
 

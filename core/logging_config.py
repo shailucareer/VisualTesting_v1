@@ -20,6 +20,18 @@ class MethodNameFilter(logging.Filter):
         return True
 
 
+def _configure_third_party_loggers() -> None:
+    """Keep noisy Selenium/WebDriver internals out of project logs."""
+    noisy_loggers = (
+        "WDM",
+        "urllib3",
+        "selenium",
+        "selenium.webdriver",
+    )
+    for logger_name in noisy_loggers:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+
 def setup_logging(project: str = None, log_dir: str = None) -> logging.Logger:
     """
     Configure structured logging with file and console handlers.
@@ -63,6 +75,8 @@ def setup_logging(project: str = None, log_dir: str = None) -> logging.Logger:
         file_handler.setFormatter(formatter)
         file_handler.addFilter(MethodNameFilter())
         logger.addHandler(file_handler)
+
+    _configure_third_party_loggers()
 
     return logger
 

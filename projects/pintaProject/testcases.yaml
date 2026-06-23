@@ -40,7 +40,7 @@ test_cases:
     device: Desktop
     figma_file_name: LandingPage.png
     url: https://pintaae.mylemonspace.com/
-    page_data_load_wait:
+    page_data_load_wait: 30
     figma_file_id: 
     figma_node_id: 
 

@@ -38,7 +38,7 @@ class ScreenshotCapture:
         browser: str = "chrome",
         headless: bool = True,
         dpr: float = 1.0,
-        page_load_timeout: int = 60,
+        page_load_timeout: int = 300,
         page_data_load_wait: int = 3,
     ):
         self.browser = browser.lower()

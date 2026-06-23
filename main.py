@@ -154,9 +154,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--page-load-timeout",
         type=int,
-        default=60,
+        default=300,
         metavar="SECONDS",
-        help="Selenium page-load timeout in seconds. Default: 60.",
+        help="Selenium page-load timeout in seconds. Default: 300.",
     )
 
     # ── Report ────────────────────────────────────────────────────

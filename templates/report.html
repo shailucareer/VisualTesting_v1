@@ -377,6 +377,15 @@
       {% if test.raw_actual_size %}
       <div class="meta-chip"><i class="bi bi-camera me-1"></i>Screenshot: <span>{{ test.raw_actual_size }}</span></div>
       {% endif %}
+      {% if test.normalized_baseline_size %}
+      <div class="meta-chip"><i class="bi bi-arrows-expand me-1"></i>Baseline (normalised): <span>{{ test.normalized_baseline_size }}</span></div>
+      {% endif %}
+      {% if test.normalized_actual_size %}
+      <div class="meta-chip"><i class="bi bi-aspect-ratio me-1"></i>Actual (normalised): <span>{{ test.normalized_actual_size }}</span></div>
+      {% endif %}
+      {% if test.normalization_summary %}
+      <div class="meta-chip"><i class="bi bi-info-circle me-1"></i>Size normalisation: <span>{{ test.normalization_summary }}</span></div>
+      {% endif %}
       {% if test.dpr_adjusted %}
       <div class="meta-chip" style="color:#f0c078; border-color:rgba(240,192,120,.4);">
         <i class="bi bi-phone me-1"></i>DPR adjusted

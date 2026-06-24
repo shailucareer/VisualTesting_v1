@@ -4,6 +4,7 @@ Selenium-based screenshot capture with full-page support and DPR awareness.
 
 import os
 import time
+from typing import Optional
 
 from selenium import webdriver
 
@@ -57,6 +58,8 @@ class ScreenshotCapture:
         output_path: str,
         width: int = 1440,
         height: int = 900,
+        figma_image_width: Optional[int] = None,
+        figma_image_height: Optional[int] = None,
     ) -> str:
         """
         Navigate to *url*, wait for the page to settle, then save a
@@ -94,7 +97,7 @@ class ScreenshotCapture:
                     "document.dispatchEvent(new Event('scroll'));",
                     current_pos,
                 )
-                time.sleep(0.6)  # Wait for lazy-loaded content to render
+                time.sleep(1)  # Wait for lazy-loaded content to render
 
                 page_height = driver.execute_script("return document.body.scrollHeight")
                 if current_pos >= page_height:
@@ -104,19 +107,56 @@ class ScreenshotCapture:
             # Wait for any final lazy content triggered by the last scroll
             time.sleep(1.0)
 
-            # Expand window to full document height for a full-page capture
-            total_height = driver.execute_script(
+            # Expand window to the maximum rendered height for full-page capture.
+            # Includes document metrics and current live viewport/app height.
+            post_scroll_height = driver.execute_script(
+                "const body = document.body || {};"
+                "const docEl = document.documentElement || {};"
+                "const viewportHeight = Math.max("
+                "  window.innerHeight || 0,"
+                "  (window.visualViewport && window.visualViewport.height) || 0"
+                ");"
                 "return Math.max("
-                "  document.body.scrollHeight,"
-                "  document.documentElement.scrollHeight,"
-                "  document.body.offsetHeight,"
-                "  document.documentElement.offsetHeight"
-                ")"
+                "  body.scrollHeight || 0,"
+                "  docEl.scrollHeight || 0,"
+                "  body.offsetHeight || 0,"
+                "  docEl.offsetHeight || 0,"
+                "  body.clientHeight || 0,"
+                "  docEl.clientHeight || 0,"
+                "  viewportHeight"
+                ");"
             )
-            driver.set_window_size(width, max(total_height, height))
+            # Final capture size aligns to Figma width (when provided) and uses
+            # max(default height, live post-scroll height, Figma height).
+            default_width = int(width)
+            figma_width = int(figma_image_width or 0)
+            target_width = figma_width if figma_width > 0 else default_width
+            default_height = int(height)
+            live_height = int(post_scroll_height)
+            figma_height = int(figma_image_height or 0)
+            final_height = max(default_height, live_height, figma_height)
+            logger.info(
+                "Width selection for capture: "
+                f"default_width={default_width}, "
+                f"figma_image_width={figma_width}, "
+                f"target_width={target_width}"
+            )
+            logger.info(
+                "Height selection for capture: "
+                f"default_height={default_height}, "
+                f"post_scroll_height={live_height}, "
+                f"figma_image_height={figma_height}, "
+                f"final_height={final_height}"
+            )
+            self._set_window_size_with_viewport_alignment(
+                driver=driver,
+                target_width=target_width,
+                target_height=final_height,
+            )
             time.sleep(0.5)
 
             # Scroll back to the very top after resize so the header is visible
+            logger.info(f"Scroll back to the very top after resize so the header is visible")
             driver.execute_script("window.scrollTo(0, 0);")
             time.sleep(0.3)
 
@@ -145,6 +185,54 @@ class ScreenshotCapture:
                 f"Unsupported browser '{self.browser}'. Choose from: {list(factories)}"
             )
         return factory(width, height)
+
+    def _set_window_size_with_viewport_alignment(
+        self,
+        driver,
+        target_width: int,
+        target_height: int,
+        max_attempts: int = 3,
+    ) -> None:
+        driver.set_window_size(target_width, target_height)
+        for attempt in range(1, max_attempts + 1):
+            viewport = driver.execute_script(
+                "return {"
+                "  width: Math.floor(window.innerWidth || 0),"
+                "  height: Math.floor(window.innerHeight || 0)"
+                "};"
+            )
+            actual_width = int(viewport.get("width", 0))
+            actual_height = int(viewport.get("height", 0))
+            delta_w = target_width - actual_width
+            delta_h = target_height - actual_height
+
+            logger.debug(
+                "Viewport alignment attempt "
+                f"{attempt}/{max_attempts}: "
+                f"target={target_width}x{target_height}, "
+                f"actual={actual_width}x{actual_height}, "
+                f"delta={delta_w}x{delta_h}"
+            )
+
+            if abs(delta_w) <= 1 and abs(delta_h) <= 1:
+                break
+
+            outer = driver.get_window_size()
+            next_width = max(100, int(outer.get("width", target_width)) + delta_w)
+            next_height = max(100, int(outer.get("height", target_height)) + delta_h)
+            driver.set_window_size(next_width, next_height)
+            time.sleep(0.1)
+
+        final_viewport = driver.execute_script(
+            "return {"
+            "  width: Math.floor(window.innerWidth || 0),"
+            "  height: Math.floor(window.innerHeight || 0)"
+            "};"
+        )
+        logger.info(
+            "Final viewport size before screenshot: "
+            f"{int(final_viewport.get('width', 0))}x{int(final_viewport.get('height', 0))}"
+        )
 
     def _chrome_driver(self, width: int, height: int):
         opts = ChromeOptions()

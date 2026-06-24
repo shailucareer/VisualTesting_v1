@@ -65,6 +65,9 @@ class ReportGenerator:
                                "total_tiles":         None,
                 "baseline_size":     None,
                 "raw_actual_size":   None,
+                "normalized_baseline_size": None,
+                "normalized_actual_size":   None,
+                "normalization_summary":    None,
                 "dpr_adjusted":      False,
                 "baseline_path":     None,
                 "actual_path":       None,
@@ -86,6 +89,13 @@ class ReportGenerator:
                 item["total_tiles"]         = cmp.total_tiles
                 item["baseline_size"]   = f"{cmp.baseline_size[0]}×{cmp.baseline_size[1]}"
                 item["raw_actual_size"] = f"{cmp.raw_actual_size[0]}×{cmp.raw_actual_size[1]}"
+                item["normalized_baseline_size"] = (
+                    f"{cmp.normalized_baseline_size[0]}×{cmp.normalized_baseline_size[1]}"
+                )
+                item["normalized_actual_size"] = (
+                    f"{cmp.normalized_actual_size[0]}×{cmp.normalized_actual_size[1]}"
+                )
+                item["normalization_summary"] = cmp.normalization_summary
                 item["dpr_adjusted"]    = cmp.dpr_adjusted
 
                 # Copy images to images folder and store relative paths

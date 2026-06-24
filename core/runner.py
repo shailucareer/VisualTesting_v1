@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
+from PIL import Image
 
 from .logging_config import get_logger, setup_logging
 from .comparison import ComparisonResult, ImageComparator
@@ -394,6 +395,18 @@ class TestRunner:
 
             # ── Capture screenshot ─────────────────────────────────────
             if self.capture_screenshots:
+                figma_image_width = None
+                figma_image_height = None
+                try:
+                    with Image.open(figma_path) as figma_img:
+                        figma_image_width = figma_img.width
+                        figma_image_height = figma_img.height
+                except Exception as exc:
+                    self._log(
+                        f"    ↳ Could not read Figma image size ({exc}); "
+                        "continuing with page/default capture size."
+                    )
+
                 self._log(
                     f"    ↳ Capturing screenshot "
                     f"({device_cfg['width']}×{device_cfg['height']}, "
@@ -414,6 +427,8 @@ class TestRunner:
                     output_path=screenshot_path,
                     width=device_cfg["width"],
                     height=device_cfg["height"],
+                    figma_image_width=figma_image_width,
+                    figma_image_height=figma_image_height,
                 )
                 self._log(f"    ↳ Screenshot saved: {Path(screenshot_path).name}")
 

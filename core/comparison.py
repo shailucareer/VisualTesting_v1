@@ -7,7 +7,8 @@ Strategy
 --------
 1. DPR normalisation   – scale screenshot down by DPR so both images are at
                          the same logical-pixel resolution.
-2. Size normalisation  – crop or pad the screenshot to match baseline dimensions.
+2. Size normalisation  – preserve full content and pad images to a common
+                         canvas size (no content-cropping).
 3. Global SSIM         – full-image structural similarity (scikit-image).
                          Catches large structural / layout regressions.
 4. Pixel-diff count    – fraction of pixels where any channel differs by more
@@ -71,6 +72,9 @@ class ComparisonResult:
     # ── Image metadata ────────────────────────────────────────────
     baseline_size: Tuple[int, int]
     raw_actual_size: Tuple[int, int]
+    normalized_baseline_size: Tuple[int, int]
+    normalized_actual_size: Tuple[int, int]
+    normalization_summary: str
     dpr_adjusted: bool = False
 
 
@@ -150,6 +154,7 @@ class ImageComparator:
 
         baseline_img = Image.open(baseline_path).convert("RGB")
         actual_img   = Image.open(actual_path).convert("RGB")
+        raw_baseline_size = baseline_img.size
         raw_actual_size = actual_img.size
         dpr_adjusted = False
 
@@ -162,9 +167,17 @@ class ImageComparator:
             logger.debug(f"DPR {self.dpr}: resized actual → {actual_img.size}")
 
         # ── Step 2: Size normalisation ─────────────────────────────────
-        actual_img = self._normalise_size(baseline_img, actual_img)
+        baseline_img, actual_img, normalization_summary = self._normalise_sizes(
+            baseline_img, actual_img
+        )
         logger.debug(
             f"After normalisation: baseline={baseline_img.size}  actual={actual_img.size}"
+        )
+        logger.info(
+            "[SIZE-NORMALISE] "
+            f"raw_baseline={raw_baseline_size}  raw_actual={raw_actual_size}  "
+            f"normalised_baseline={baseline_img.size}  normalised_actual={actual_img.size}  "
+            f"details={normalization_summary}"
         )
 
         processed_actual_path = os.path.join(
@@ -222,8 +235,11 @@ class ImageComparator:
             diff_image_path=diff_path,
             baseline_path=baseline_path,
             actual_path=processed_actual_path,
-            baseline_size=baseline_img.size,
+            baseline_size=raw_baseline_size,
             raw_actual_size=raw_actual_size,
+            normalized_baseline_size=baseline_img.size,
+            normalized_actual_size=actual_img.size,
+            normalization_summary=normalization_summary,
             dpr_adjusted=dpr_adjusted,
         )
 
@@ -295,24 +311,37 @@ class ImageComparator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _normalise_size(
+    def _normalise_sizes(
         baseline: Image.Image, actual: Image.Image
-    ) -> Image.Image:
+    ) -> Tuple[Image.Image, Image.Image, str]:
         bw, bh = baseline.size
         aw, ah = actual.size
-        if (aw, ah) == (bw, bh):
-            return actual
+        notes: List[str] = []
+
         if aw != bw:
             scale  = bw / aw
-            actual = actual.resize((bw, int(ah * scale)), Image.LANCZOS)
+            new_h = max(1, int(round(ah * scale)))
+            actual = actual.resize((bw, new_h), Image.LANCZOS)
             aw, ah = actual.size
-        if ah > bh:
-            actual = actual.crop((0, 0, bw, bh))
-        elif ah < bh:
-            canvas = Image.new("RGB", (bw, bh), (255, 255, 255))
+            notes.append(f"actual_width_scaled_to_baseline(scale={scale:.4f})")
+
+        target_h = max(bh, ah)
+        if bh < target_h:
+            canvas = Image.new("RGB", (bw, target_h), (255, 255, 255))
+            canvas.paste(baseline, (0, 0))
+            baseline = canvas
+            notes.append(f"baseline_padded_bottom={target_h - bh}px")
+
+        if ah < target_h:
+            canvas = Image.new("RGB", (bw, target_h), (255, 255, 255))
             canvas.paste(actual, (0, 0))
             actual = canvas
-        return actual
+            notes.append(f"actual_padded_bottom={target_h - ah}px")
+
+        if not notes:
+            notes.append("no_size_change")
+
+        return baseline, actual, "; ".join(notes)
 
     def _generate_diff_composite(
         self,

@@ -60,6 +60,9 @@ def setup_logging(project: str = None, log_dir: str = None) -> logging.Logger:
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
     console_handler.addFilter(MethodNameFilter())
+    # Handle cp1252 encoding in Jenkins by replacing uncodable characters
+    if hasattr(console_handler, 'stream'):
+        console_handler.stream.reconfigure(encoding='utf-8', errors='replace') if hasattr(console_handler.stream, 'reconfigure') else None
     logger.addHandler(console_handler)
 
     # ── File handler (optional) ──────────────────────────────────────────

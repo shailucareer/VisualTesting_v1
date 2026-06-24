@@ -29,7 +29,7 @@ class ScreenshotCapture:
     DPR notes
     ---------
     When ``dpr`` > 1 Chrome is launched with ``--force-device-scale-factor``
-    so the resulting PNG will be ``width * dpr`` × ``height * dpr`` pixels.
+    so the resulting PNG will be ``width * dpr`` x ``height * dpr`` pixels.
     The ImageComparator will divide by the same DPR before comparing against
     the baseline (which is always at logical / 1x resolution).
     """
@@ -69,7 +69,7 @@ class ScreenshotCapture:
         
         Logs browser type, resolution, DPR, and save location.
         """
-        logger.info(f"Starting screenshot capture: browser={self.browser}, resolution={width}×{height}, dpr={self.dpr}")
+        logger.info(f"Starting screenshot capture: browser={self.browser}, resolution={width}x{height}, dpr={self.dpr}")
         driver = self._create_driver(width, height)
         try:
             driver.set_page_load_timeout(self.page_load_timeout)

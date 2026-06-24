@@ -154,7 +154,7 @@ class TestRunner:
                 results.append(TestResult(test_case=tc, status="skipped"))
                 continue
 
-            self._log(f"\n  [RUN]  {tc.name}  ({tc.device})  →  {tc.url}")
+            self._log(f"\n  [RUN]  {tc.name}  ({tc.device})  ->  {tc.url}")
             logger.info(f"Running test: {tc.name} on {tc.device} device")
             result = self._run_single(tc)
             results.append(result)
@@ -359,12 +359,12 @@ class TestRunner:
             has_token = tc.figma_access_token and str(tc.figma_access_token).strip()
             
             if has_file_id and has_token:
-                self._log("    ↳ Fetching Figma JSON data …")
+                self._log("    -> Fetching Figma JSON data...")
                 try:
                     FigmaClient(tc.figma_access_token).fetch_file_data(
                         file_id=tc.figma_file_id
                     )
-                    self._log(f"    ↳ Figma JSON data fetched successfully")
+                    self._log(f"    -> Figma JSON data fetched successfully")
                 except Exception as exc:
                     logger.error(f"Failed to fetch Figma JSON data: {exc}")
                     return TestResult(
@@ -374,12 +374,12 @@ class TestRunner:
                     )
             elif has_file_id and not has_token:
                 self._log(
-                    "    ↳ Skipping Figma API call: figma_access_token is missing; "
+                    "    -> Skipping Figma API call: figma_access_token is missing; "
                     "using provided local Figma image."
                 )
             else:
                 self._log(
-                    "    ↳ Skipping Figma API call: figma_file_id is blank; "
+                    "    -> Skipping Figma API call: figma_file_id is blank; "
                     "using provided local Figma image."
                 )
 
@@ -403,14 +403,14 @@ class TestRunner:
                         figma_image_height = figma_img.height
                 except Exception as exc:
                     self._log(
-                        f"    ↳ Could not read Figma image size ({exc}); "
+                        f"    -> Could not read Figma image size ({exc}); "
                         "continuing with page/default capture size."
                     )
 
                 self._log(
-                    f"    ↳ Capturing screenshot "
-                    f"({device_cfg['width']}×{device_cfg['height']}, "
-                    f"DPR={self.dpr}) …"
+                    f"    -> Capturing screenshot "
+                    f"({device_cfg['width']}x{device_cfg['height']}, "
+                    f"DPR={self.dpr})..."
                 )
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 screenshot_path = str(
@@ -430,7 +430,7 @@ class TestRunner:
                     figma_image_width=figma_image_width,
                     figma_image_height=figma_image_height,
                 )
-                self._log(f"    ↳ Screenshot saved: {Path(screenshot_path).name}")
+                self._log(f"    -> Screenshot saved: {Path(screenshot_path).name}")
 
             # ── Determine baseline / actual paths ──────────────────────
             if self.baseline_mode == "figma":
@@ -465,7 +465,7 @@ class TestRunner:
                     if figma_path.exists():
                         baseline_path = str(figma_path)
                         self._log(
-                            "    ↳ No previous screenshot found – "
+                            "    -> No previous screenshot found - "
                             "using Figma image as baseline."
                         )
                     else:
@@ -479,7 +479,7 @@ class TestRunner:
                         )
 
             # ── Image comparison ───────────────────────────────────────
-            self._log("    ↳ Comparing images …")
+            self._log("    -> Comparing images...")
             diff_dir = str(self.diffs_dir / tc.name)
             comparison = ImageComparator(
                 threshold=self.threshold,
@@ -594,13 +594,13 @@ class TestRunner:
 
     @staticmethod
     def _log_result(result: TestResult) -> None:
-        icons = {"passed": "✓", "failed": "✗", "error": "!", "skipped": "-"}
+        icons = {"passed": "PASS", "failed": "FAIL", "error": "ERR", "skipped": "SKIP"}
         icon = icons.get(result.status, "?")
         line = f"  [{icon}] {result.test_case.name}: {result.status.upper()}"
         if result.comparison:
             line += f"  (SSIM {result.comparison.similarity:.4f})"
         if result.error_message:
-            line += f"  — {result.error_message}"
+            line += f"  - {result.error_message}"
         print(line)
 
     @staticmethod

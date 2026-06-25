@@ -96,6 +96,10 @@ Common fields:
 python main.py --project opinion_route --capture-screenshots
 ```
 
+## QA Guide
+
+- Visual threshold tuning guide for QA: `VISUAL_THRESHOLD_QUICK_GUIDE_FOR_QA.md`
+
 ## CLI Arguments and Examples
 
 This section covers all arguments currently supported by `main.py`.

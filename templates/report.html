@@ -49,10 +49,41 @@
     .report-header {
       background: var(--header-bg);
       border-bottom: 2px solid var(--border-color);
-      padding: 1.8rem 2rem 1.4rem;
+      padding: 2rem 2.2rem 1.8rem;
+    }
+    .report-header-content {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: nowrap;
+    }
+    .report-header-main {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .report-header-actions {
+      flex: 0 0 auto;
+      align-self: flex-start;
     }
     .report-header h1 { font-size: 1.55rem; font-weight: 700; color: var(--text-primary); margin: 0; }
-    .report-header .meta { font-size: .82rem; color: var(--text-secondary); margin-top: .3rem; }
+    .report-header .meta { font-size: .84rem; color: var(--text-secondary); margin-top: .45rem; line-height: 1.5; }
+    .report-runtime {
+      margin-top: 1rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+      gap: .55rem;
+    }
+    .runtime-chip {
+      font-size: .78rem;
+      line-height: 1.35;
+      background: light-dark(#f8f9fa, #10192c);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: .5rem .7rem;
+      color: var(--text-secondary);
+    }
+    .runtime-chip strong { color: var(--text-primary); }
 
     /* ── Summary cards ──────────────────────────────────────────── */
     .stat-card {
@@ -184,6 +215,30 @@
     }
     .meta-chip span { color: var(--text-primary); }
 
+    .testcase-details {
+      margin-bottom: .9rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: .75rem .9rem;
+      background: light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.02));
+    }
+    .testcase-details .title {
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-secondary);
+      font-weight: 700;
+      margin-bottom: .45rem;
+    }
+    .testcase-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: .35rem .8rem;
+      font-size: .8rem;
+      color: var(--text-secondary);
+    }
+    .testcase-grid strong { color: var(--text-primary); }
+
     /* ── Error / skip message ───────────────────────────────────── */
     .error-box {
       background: light-dark(rgba(217,72,15,.08), rgba(240,165,0,.08)); border: 1px solid light-dark(rgba(217,72,15,.3), rgba(240,165,0,.3));
@@ -210,6 +265,23 @@
       .test-card { page-break-inside: avoid; }
       .comparison-body { display: block !important; }
     }
+
+    @media (max-width: 992px) {
+      .report-header {
+        padding: 1.5rem 1.25rem 1.3rem;
+      }
+      .report-header-content {
+        flex-wrap: wrap;
+      }
+      .report-header-actions {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .report-runtime {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+    }
   </style>
 </head>
 <body>
@@ -218,20 +290,33 @@
 <!--  HEADER                                                        -->
 <!-- ══════════════════════════════════════════════════════════════ -->
 <div class="report-header">
-  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-    <div>
+  <div class="report-header-content">
+    <div class="report-header-main">
       <h1><i class="bi bi-eye-fill me-2" style="color:#7eb8f7;"></i>
           Visual Testing Report &mdash; <em>{{ project }}</em></h1>
       <div class="meta">
         Generated&nbsp;{{ generated_at }}
+        {% if duration %}
+        &nbsp;·&nbsp;
+        Duration&nbsp;<strong style="color:#7eb8f7;">{{ duration }}</strong>
+        {% endif %}
         &nbsp;·&nbsp;
         Pass&nbsp;rate&nbsp;<strong style="color:#7eb8f7;">{{ summary.pass_rate }}%</strong>
         &nbsp;({{ summary.passed }}&nbsp;/&nbsp;{{ summary.total - summary.skipped }}&nbsp;runnable)
       </div>
+      {% if runtime_parameters %}
+      <div class="report-runtime">
+        {% for key, value in runtime_parameters.items() %}
+        <div class="runtime-chip"><b>{{ key }}</b>: {{ value }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
-      <i class="bi bi-printer me-1"></i>Print
-    </button>
+    <div class="report-header-actions">
+      <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>Print
+      </button>
+    </div>
   </div>
 </div>
 
@@ -336,6 +421,18 @@
 
   <!-- Collapsible body -->
   <div class="comparison-body" style="display:none;">
+
+    <div class="testcase-details">
+      <div class="title"><i class="bi bi-card-list me-1"></i>Test Case Details</div>
+      <div class="testcase-grid">
+        <div><b>Name:</b> {{ test.name }}</div>
+        <div><b>Run:</b> {{ test.run }}</div>
+        <div><b>Device:</b> {{ test.device }}</div>
+        <div><b>Figma File:</b> {{ test.figma_file_name }}</div>
+        <div><b>Page Load Wait:</b> {{ test.page_data_load_wait }}s</div>
+        <div><b>Status:</b> {{ test.status }}</div>
+      </div>
+    </div>
 
     <!-- Meta strip -->
     <div class="meta-strip">

@@ -5,6 +5,7 @@ Logs all test lifecycle events, downloads, captures, and comparisons.
 
 import os
 import re
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -129,6 +130,7 @@ class TestRunner:
 
     def run(self) -> bool:
         """Execute all test cases.  Returns True when all pass."""
+        run_started_at = datetime.now()
         # Initialize logging for this project
         setup_logging(project=self.project)
         logger = get_logger("core.runner")
@@ -161,17 +163,65 @@ class TestRunner:
             self._log_result(result)
 
         logger = get_logger("core.runner")
+        run_finished_at = datetime.now()
+        runtime_seconds = max((run_finished_at - run_started_at).total_seconds(), 0.0)
+
+        runtime_metadata = {
+            "duration": self._format_duration(runtime_seconds),
+            "duration_seconds": round(runtime_seconds, 3),
+            "runtime_parameters": self._build_runtime_parameters(),
+        }
+
         report_path = ReportGenerator(
             project=self.project,
             project_path=self.project_path,
             reports_dir=self.reports_dir,
-        ).generate(results, self.report_name)
+        ).generate(results, self.report_name, runtime_metadata)
         logger.info(f"HTML report generated: {report_path}")
 
         self._print_summary(results, report_path)
         success = all(r.status in ("passed", "skipped") for r in results)
         logger.info(f"Test run completed: success={success}")
         return success
+
+    def _build_runtime_parameters(self) -> dict:
+        """Build runtime parameters shown in report and history headers."""
+        mode_label = self.target_test_name if self.run_mode == "test_name" else self.run_mode
+        baseline_display = self.baseline_mode
+        if self.requested_baseline_mode == "auto":
+            baseline_display = (
+                f"{self.baseline_mode} "
+                f"(auto resolved from config: {self.config_baseline_mode})"
+            )
+
+        params = OrderedDict()
+        params["baseline_mode"] = baseline_display
+        params["project"] = self.project
+        params["run_mode"] = mode_label
+        params["threshold"] = self.threshold
+        params["max_diff_pct"] = self.max_diff_pct
+        params["diff_sensitivity"] = self.diff_sensitivity
+        params["tile_threshold"] = self.tile_threshold
+        params["tile_size"] = self.tile_size
+        params["dpr"] = self.dpr
+        params["capture_screenshots"] = self.capture_screenshots
+        params["fetch_figma"] = self.fetch_figma
+        params["headless"] = self.headless
+        params["browser"] = self.browser
+        params["page_load_timeout"] = self.page_load_timeout
+        return params
+
+    @staticmethod
+    def _format_duration(duration_seconds: float) -> str:
+        """Format duration in HH:MM:SS.mmm format."""
+        total_ms = int(round(duration_seconds * 1000))
+        hours = total_ms // 3_600_000
+        remaining = total_ms % 3_600_000
+        minutes = remaining // 60_000
+        remaining = remaining % 60_000
+        seconds = remaining // 1000
+        milliseconds = remaining % 1000
+        return f"{hours:02}:{minutes:02}:{seconds:02}.{milliseconds:03}"
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -26,7 +26,7 @@ class ReportGenerator:
         self.reports_dir = reports_dir
         self._templates_dir = Path(__file__).parent.parent / "templates"
 
-    def generate(self, results, report_name: Optional[str] = None) -> str:
+    def generate(self, results, report_name: Optional[str] = None, runtime_metadata: Optional[dict] = None) -> str:
         """Render the HTML report and return its absolute path."""
         logger.debug(f"Starting HTML report generation for project: {self.project}")
         ts = datetime.now()
@@ -51,8 +51,11 @@ class ReportGenerator:
         for result in results:
             item: dict = {
                 "name":          result.test_case.name,
+                "run":           result.test_case.run,
                 "device":        result.test_case.device,
                 "url":           result.test_case.url,
+                "figma_file_name": result.test_case.figma_file_name,
+                "page_data_load_wait": result.test_case.page_data_load_wait,
                 "status":        result.status,
                 "error_message": result.error_message,
                 "similarity_pct":    None,
@@ -130,6 +133,8 @@ class ReportGenerator:
             project=self.project,
             generated_at=ts.strftime("%Y-%m-%d %H:%M:%S"),
             summary=summary,
+            duration=(runtime_metadata or {}).get("duration"),
+            runtime_parameters=(runtime_metadata or {}).get("runtime_parameters", {}),
             tests=tests_ctx,
         )
 
@@ -143,6 +148,9 @@ class ReportGenerator:
             "generated_at": ts.strftime("%Y-%m-%d %H:%M:%S"),
             "project": self.project,
             "summary": summary,
+            "duration": (runtime_metadata or {}).get("duration"),
+            "duration_seconds": (runtime_metadata or {}).get("duration_seconds"),
+            "runtime_parameters": (runtime_metadata or {}).get("runtime_parameters", {}),
         }
         metadata_path = str(report_dir / "metadata.json")
         with open(metadata_path, "w", encoding="utf-8") as fh:

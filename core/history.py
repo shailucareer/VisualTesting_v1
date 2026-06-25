@@ -96,11 +96,15 @@ class HistoryGenerator:
             # Try to read metadata.json first
             metadata_file = report_dir / "metadata.json"
             summary = None
+            duration = None
+            runtime_parameters = {}
             if metadata_file.exists():
                 try:
                     with open(metadata_file, "r", encoding="utf-8") as fh:
                         metadata = json.load(fh)
                         summary = metadata.get("summary", {})
+                        duration = metadata.get("duration")
+                        runtime_parameters = metadata.get("runtime_parameters") or {}
                 except Exception as e:
                     logger.debug(f"Failed to read metadata.json from {report_dir}: {e}")
             
@@ -127,6 +131,8 @@ class HistoryGenerator:
                 "test_count": test_count,
                 "relative_dir": report_dir.name,
                 "summary": summary if summary else {},  # Add summary stats
+                "duration": duration,
+                "runtime_parameters": runtime_parameters,
             }
         except Exception as e:
             logger.debug(f"Error extracting report data from {report_dir}: {e}")

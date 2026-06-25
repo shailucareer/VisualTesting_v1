@@ -148,12 +148,15 @@
     }
 
     .execution-header {
+      padding: 1.3rem 1.6rem 1.25rem;
+      cursor: pointer;
+    }
+
+    .execution-grid {
       display: grid;
       grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 0.5fr;
       gap: 1.5rem;
       align-items: center;
-      padding: 1.2rem 1.5rem;
-      cursor: pointer;
     }
 
     .execution-header:hover {
@@ -202,6 +205,38 @@
     .execution-meta.stat-failed .value { color: var(--fail-color); }
     .execution-meta.stat-skipped .value { color: var(--skip-color); }
     .execution-meta.stat-error .value { color: var(--error-color); }
+
+    .execution-runtime-summary {
+      margin-top: 0.75rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .runtime-chip {
+      font-size: 0.78rem;
+      line-height: 1.35;
+      background: light-dark(#f8f9fa, #10192c);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.45rem 0.65rem;
+      color: var(--text-secondary);
+    }
+
+    .runtime-chip strong {
+      color: var(--text-primary);
+    }
+
+    .runtime-compact {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.65rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.2rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px dashed var(--border-color);
+    }
 
     .execution-actions {
       display: flex;
@@ -333,7 +368,7 @@
     }
 
     @media (max-width: 1024px) {
-      .execution-header {
+      .execution-grid {
         grid-template-columns: 1.5fr 1fr 1fr 1fr 0.5fr;
         gap: 1rem;
       }
@@ -363,7 +398,7 @@
         padding: 0 1.5rem 1.5rem 1.5rem;
       }
 
-      .execution-header {
+      .execution-grid {
         grid-template-columns: 1.5fr 1fr 1fr 0.5fr;
         gap: 0.75rem;
       }
@@ -433,39 +468,64 @@
           <div class="execution-item">
             <!-- Header / Summary -->
             <div class="execution-header" onclick="toggleDetails(this)">
-              <div class="execution-timestamp">
-                <div class="date">{{ report.date }}</div>
-                <div class="time">{{ report.time }}</div>
+              <div class="execution-grid">
+                <div class="execution-timestamp">
+                  <div class="date">{{ report.date }}</div>
+                  <div class="time">{{ report.time }}</div>
+                </div>
+
+                <div class="execution-meta">
+                  <div class="label">Total Tests</div>
+                  <div class="value">{{ report.summary.total if report.summary else report.test_count or '?' }}</div>
+                </div>
+
+                <div class="execution-meta stat-passed">
+                  <div class="label">Passed</div>
+                  <div class="value">{% if report.summary %}{{ report.summary.passed }}{% else %}—{% endif %}</div>
+                </div>
+
+                <div class="execution-meta stat-failed">
+                  <div class="label">Failed</div>
+                  <div class="value">{% if report.summary %}{{ report.summary.failed }}{% else %}—{% endif %}</div>
+                </div>
+
+                <div class="execution-meta stat-skipped">
+                  <div class="label">Skipped</div>
+                  <div class="value">{% if report.summary %}{{ report.summary.skipped }}{% else %}—{% endif %}</div>
+                </div>
+
+                <div class="execution-meta stat-error">
+                  <div class="label">Errors</div>
+                  <div class="value">{% if report.summary %}{{ report.summary.errors }}{% else %}—{% endif %}</div>
+                </div>
+
+                <div style="text-align: right;">
+                  <i class="bi bi-chevron-down" style="color: var(--text-secondary); font-size: 1.2rem;"></i>
+                </div>
               </div>
 
-              <div class="execution-meta">
-                <div class="label">Total Tests</div>
-                <div class="value">{{ report.summary.total if report.summary else report.test_count or '?' }}</div>
+              <div class="runtime-compact">
+                {% if report.duration %}
+                <span><b>Duration:</b> {{ report.duration }}</span>
+                {% endif %}
+                {% if report.runtime_parameters and report.runtime_parameters.get('baseline_mode') %}
+                <span><b>Baseline:</b> {{ report.runtime_parameters.get('baseline_mode') }}</span>
+                {% endif %}
+                {% if report.runtime_parameters and report.runtime_parameters.get('run_mode') %}
+                <span><b>Run Mode:</b> {{ report.runtime_parameters.get('run_mode') }}</span>
+                {% endif %}
+                {% if report.runtime_parameters and report.runtime_parameters.get('threshold') is not none %}
+                <span><b>Threshold:</b> {{ report.runtime_parameters.get('threshold') }}</span>
+                {% endif %}
               </div>
 
-              <div class="execution-meta stat-passed">
-                <div class="label">Passed</div>
-                <div class="value">{% if report.summary %}{{ report.summary.passed }}{% else %}—{% endif %}</div>
+              {% if report.runtime_parameters %}
+              <div class="execution-runtime-summary">
+                {% for key, value in report.runtime_parameters.items() %}
+                <div class="runtime-chip"><b>{{ key }}</b>: {{ value }}</div>
+                {% endfor %}
               </div>
-
-              <div class="execution-meta stat-failed">
-                <div class="label">Failed</div>
-                <div class="value">{% if report.summary %}{{ report.summary.failed }}{% else %}—{% endif %}</div>
-              </div>
-
-              <div class="execution-meta stat-skipped">
-                <div class="label">Skipped</div>
-                <div class="value">{% if report.summary %}{{ report.summary.skipped }}{% else %}—{% endif %}</div>
-              </div>
-
-              <div class="execution-meta stat-error">
-                <div class="label">Errors</div>
-                <div class="value">{% if report.summary %}{{ report.summary.errors }}{% else %}—{% endif %}</div>
-              </div>
-
-              <div style="text-align: right;">
-                <i class="bi bi-chevron-down" style="color: var(--text-secondary); font-size: 1.2rem;"></i>
-              </div>
+              {% endif %}
             </div>
 
             <!-- Expandable Details -->
@@ -501,9 +561,13 @@
                 <div style="font-size: 0.85rem; color: var(--text-secondary); font-family: monospace;">
                   <div>Execution ID: {{ report.name }}</div>
                   <div>Timestamp: {{ report.timestamp }}</div>
+                  {% if report.duration %}
+                  <div>Duration: {{ report.duration }}</div>
+                  {% endif %}
                   <div>Directory: {{ report.relative_dir }}</div>
                 </div>
               </div>
+
             </div>
           </div>
         {% endfor %}

@@ -48,7 +48,7 @@ class HistoryGenerator:
         html_content = template.render(context)
         
         # Write to history.html in reports directory with UTF-8 encoding
-        history_path = self.reports_dir / "history.html"
+        history_path = (self.reports_dir / "history.html").resolve()
         history_path.write_text(html_content, encoding="utf-8")
         logger.info(f"History page generated: {history_path}")
         

@@ -42,7 +42,7 @@ class ReportGenerator:
         images_dir = report_dir / "images"
         images_dir.mkdir(exist_ok=True)
 
-        report_path = str(report_dir / "report.html")
+        report_path = str((report_dir / "report.html").resolve())
         logger.debug(f"Report will be saved to: {report_path}")
 
         # ── Build per-test context dicts ──────────────────────────────

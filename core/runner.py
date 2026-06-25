@@ -178,8 +178,9 @@ class TestRunner:
             reports_dir=self.reports_dir,
         ).generate(results, self.report_name, runtime_metadata)
         logger.info(f"HTML report generated: {report_path}")
+        history_path = str((self.reports_dir / "history.html").resolve())
 
-        self._print_summary(results, report_path)
+        self._print_summary(results, report_path, history_path)
         success = all(r.status in ("passed", "skipped") for r in results)
         logger.info(f"Test run completed: success={success}")
         return success
@@ -654,7 +655,7 @@ class TestRunner:
         print(line)
 
     @staticmethod
-    def _print_summary(results: List[TestResult], report_path: str) -> None:
+    def _print_summary(results: List[TestResult], report_path: str, history_path: str) -> None:
         passed  = sum(1 for r in results if r.status == "passed")
         failed  = sum(1 for r in results if r.status == "failed")
         skipped = sum(1 for r in results if r.status == "skipped")
@@ -667,4 +668,5 @@ class TestRunner:
             f"{skipped} skipped  {errors} errors  /  {total} total"
         )
         print(f"  Report : {report_path}")
+        print(f"  History: {history_path}")
         print("=" * w + "\n")

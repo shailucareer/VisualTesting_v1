@@ -6,7 +6,7 @@ Logs all test lifecycle events, downloads, captures, and comparisons.
 import os
 import re
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -49,6 +49,7 @@ class TestResult:
     error_message: Optional[str] = None
     screenshot_path: Optional[str] = None
     baseline_path: Optional[str] = None
+    browser: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +93,8 @@ class TestRunner:
         capture_screenshots: bool = False,
         fetch_figma: bool = False,
         headless: bool = True,
-        browser: str = "chrome",
+        browser: Optional[str] = None,
+        browsers: Optional[List[str]] = None,
         report_name: Optional[str] = None,
         page_load_timeout: int = 60,
     ):
@@ -108,7 +110,13 @@ class TestRunner:
         self.capture_screenshots = capture_screenshots
         self.fetch_figma = fetch_figma
         self.headless = headless
-        self.browser = browser
+        if browsers:
+            self.browsers = list(browsers)
+        else:
+            self.browsers = [browser or "chrome"]
+        self.browser = self.browsers[0]
+        # For multi-browser runs, do not mix in legacy screenshots that lack browser suffixes.
+        self.allow_legacy_screenshot_lookup = len(self.browsers) == 1
         self.report_name = report_name
         self.page_load_timeout = page_load_timeout
         self.run_mode = "selected"
@@ -148,19 +156,25 @@ class TestRunner:
         results: List[TestResult] = []
 
         logger = get_logger("core.runner")
-        for tc in test_cases:
-            # In selected mode, keep disabled tests visible as skipped in report.
-            if self.run_mode == "selected" and not tc.run:
-                self._log(f"  [SKIP] {tc.name}  (run=false)")
-                logger.info(f"Test skipped: {tc.name} (run=false)")
-                results.append(TestResult(test_case=tc, status="skipped"))
-                continue
+        for browser in self.browsers:
+            self.browser = browser
+            if len(self.browsers) > 1:
+                self._log(f"\n  [BROWSER] {browser}")
+                logger.info(f"Running test set on browser: {browser}")
 
-            self._log(f"\n  [RUN]  {tc.name}  ({tc.device})  ->  {tc.url}")
-            logger.info(f"Running test: {tc.name} on {tc.device} device")
-            result = self._run_single(tc)
-            results.append(result)
-            self._log_result(result)
+            for tc in test_cases:
+                # In selected mode, keep disabled tests visible as skipped in report.
+                if self.run_mode == "selected" and not tc.run:
+                    self._log(f"  [SKIP] {tc.name}  (run=false)")
+                    logger.info(f"Test skipped: {tc.name} (run=false), browser={browser}")
+                    results.append(TestResult(test_case=tc, status="skipped", browser=browser))
+                    continue
+
+                self._log(f"\n  [RUN]  {tc.name}  ({tc.device})  ->  {tc.url}  [browser={browser}]")
+                logger.info(f"Running test: {tc.name} on {tc.device} device, browser={browser}")
+                result = self._run_single(tc)
+                results.append(result)
+                self._log_result(result)
 
         logger = get_logger("core.runner")
         run_finished_at = datetime.now()
@@ -208,7 +222,7 @@ class TestRunner:
         params["capture_screenshots"] = self.capture_screenshots
         params["fetch_figma"] = self.fetch_figma
         params["headless"] = self.headless
-        params["browser"] = self.browser
+        params["browser"] = ", ".join(self.browsers)
         params["page_load_timeout"] = self.page_load_timeout
         return params
 
@@ -325,7 +339,8 @@ class TestRunner:
             runnable_cases = [tc for tc in test_cases if tc.run]
 
         has_previous_screenshots = any(
-            self._latest_screenshot(tc.name) is not None for tc in runnable_cases
+            any(self._latest_screenshot(tc.name, browser=b) is not None for b in self.browsers)
+            for tc in runnable_cases
         )
         if not has_previous_screenshots:
             self.baseline_mode = "figma"
@@ -465,7 +480,7 @@ class TestRunner:
                 )
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 screenshot_path = str(
-                    self.screenshots_dir / f"{tc.name}_{ts}.png"
+                    self.screenshots_dir / f"{tc.name}_{self.browser}_{ts}.png"
                 )
                 ScreenshotCapture(
                     browser=self.browser,
@@ -487,11 +502,12 @@ class TestRunner:
             if self.baseline_mode == "figma":
                 baseline_path = str(figma_path)
                 if not screenshot_path:
-                    screenshot_path = self._latest_screenshot(tc.name)
+                    screenshot_path = self._latest_screenshot(tc.name, browser=self.browser)
                 if not screenshot_path:
                     return TestResult(
                         test_case=tc,
                         status="error",
+                        browser=self.browser,
                         error_message=(
                             "No screenshot available. "
                             "Run with --capture-screenshots first."
@@ -501,16 +517,21 @@ class TestRunner:
 
             else:  # baseline_mode == "screenshot"
                 if not screenshot_path:
-                    screenshot_path = self._latest_screenshot(tc.name)
+                    screenshot_path = self._latest_screenshot(tc.name, browser=self.browser)
                 if not screenshot_path:
                     return TestResult(
                         test_case=tc,
                         status="error",
+                        browser=self.browser,
                         error_message="No screenshots available for comparison. Run with --capture-screenshots",
                     )
                 actual_path = screenshot_path
 
-                baseline_path = self._previous_screenshot(tc.name, exclude=screenshot_path)
+                baseline_path = self._previous_screenshot(
+                    tc.name,
+                    exclude=screenshot_path,
+                    browser=self.browser,
+                )
                 if not baseline_path:
                     # Graceful fallback: use Figma image if available
                     if figma_path.exists():
@@ -552,6 +573,7 @@ class TestRunner:
                 comparison=comparison,
                 screenshot_path=actual_path,
                 baseline_path=baseline_path,
+                browser=self.browser,
             )
 
         except Exception as exc:  # noqa: BLE001
@@ -561,6 +583,7 @@ class TestRunner:
                 test_case=tc,
                 status="error",
                 error_message=str(exc),
+                browser=self.browser,
             )
 
     def _parse_wait_seconds(
@@ -605,25 +628,42 @@ class TestRunner:
     # Screenshot helpers
     # ------------------------------------------------------------------
 
-    def _latest_screenshot(self, test_name: str) -> Optional[str]:
+    def _latest_screenshot(self, test_name: str, browser: Optional[str] = None) -> Optional[str]:
+        browser_name = browser or self.browser
         matches = sorted(
-            self.screenshots_dir.glob(f"{test_name}_*.png"),
+            self.screenshots_dir.glob(f"{test_name}_{browser_name}_*.png"),
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )
+        if not matches and self.allow_legacy_screenshot_lookup:
+            matches = sorted(
+                self.screenshots_dir.glob(f"{test_name}_*.png"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
         return str(matches[0]) if matches else None
 
     def _previous_screenshot(
-        self, test_name: str, exclude: str
+        self, test_name: str, exclude: str, browser: Optional[str] = None
     ) -> Optional[str]:
+        browser_name = browser or self.browser
         matches = sorted(
             (
-                p for p in self.screenshots_dir.glob(f"{test_name}_*.png")
+                p for p in self.screenshots_dir.glob(f"{test_name}_{browser_name}_*.png")
                 if str(p) != exclude
             ),
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )
+        if not matches and self.allow_legacy_screenshot_lookup:
+            matches = sorted(
+                (
+                    p for p in self.screenshots_dir.glob(f"{test_name}_*.png")
+                    if str(p) != exclude
+                ),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
         return str(matches[0]) if matches else None
 
     # ------------------------------------------------------------------
@@ -647,7 +687,8 @@ class TestRunner:
     def _log_result(result: TestResult) -> None:
         icons = {"passed": "PASS", "failed": "FAIL", "error": "ERR", "skipped": "SKIP"}
         icon = icons.get(result.status, "?")
-        line = f"  [{icon}] {result.test_case.name}: {result.status.upper()}"
+        browser_label = f" [{result.browser}]" if result.browser else ""
+        line = f"  [{icon}] {result.test_case.name}{browser_label}: {result.status.upper()}"
         if result.comparison:
             line += f"  (SSIM {result.comparison.similarity:.4f})"
         if result.error_message:

@@ -49,8 +49,12 @@ class ReportGenerator:
         logger.debug(f"Processing {len(results)} test results for report")
         tests_ctx = []
         for result in results:
+            test_name = result.test_case.name
+            if getattr(result, "browser", None):
+                test_name = f"{test_name} [{result.browser}]"
+
             item: dict = {
-                "name":          result.test_case.name,
+                "name":          test_name,
                 "run":           result.test_case.run,
                 "device":        result.test_case.device,
                 "url":           result.test_case.url,

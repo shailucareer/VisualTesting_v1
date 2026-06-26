@@ -117,7 +117,8 @@ test_cases:
 Case D: "Headless browser is unstable"
 
 1. Try Firefox: --browser firefox
-2. Or run visible browser: --no-headless
+2. Try multiple browsers in one run: --browser edge,firefox,chrome
+3. Or run visible browser: --no-headless
 
 ## 6) Common QA Notes
 

@@ -26,8 +26,12 @@ Usage examples
 import argparse
 import sys
 from pathlib import Path
+from typing import List
 
 from core.runner import TestRunner
+
+
+SUPPORTED_BROWSERS = ("chrome", "firefox", "edge")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -142,9 +146,14 @@ def build_parser() -> argparse.ArgumentParser:
     # ── Browser options ───────────────────────────────────────────
     parser.add_argument(
         "--browser",
-        choices=["chrome", "firefox", "edge"],
-        default="chrome",
-        help="Browser for Selenium screenshots. Default: chrome.",
+        action="append",
+        default=None,
+        metavar="BROWSERS",
+        help=(
+            "Browser(s) for Selenium screenshots. "
+            "Supports a single value (e.g. firefox), comma-separated values "
+            "(e.g. edge,firefox,chrome), or repeated flags. Default: chrome."
+        ),
     )
     parser.add_argument(
         "--no-headless",
@@ -194,6 +203,8 @@ def validate_args(args, parser: argparse.ArgumentParser) -> None:
             f"--page-load-timeout must be positive, got {args.page_load_timeout}"
         )
 
+    args.browsers = _normalize_browsers(args.browser, parser)
+
     project_path = Path("projects") / args.project
     if not project_path.exists():
         available = (
@@ -209,6 +220,44 @@ def validate_args(args, parser: argparse.ArgumentParser) -> None:
     testcases_path = project_path / "testcases.yaml"
     if not testcases_path.exists():
         parser.error(f"testcases.yaml not found at '{testcases_path.resolve()}'")
+
+
+def _normalize_browsers(raw_values, parser: argparse.ArgumentParser) -> List[str]:
+    """
+    Normalize --browser values.
+
+    Accepted forms:
+    - missing: defaults to ["chrome"]
+    - single: ["firefox"]
+    - comma-separated / repeated flags: ["edge", "firefox", "chrome"]
+    """
+    if not raw_values:
+        return ["chrome"]
+
+    browsers: List[str] = []
+    for raw in raw_values:
+        for token in str(raw).split(","):
+            value = token.strip().lower()
+            if value:
+                browsers.append(value)
+
+    if not browsers:
+        return ["chrome"]
+
+    invalid = [b for b in browsers if b not in SUPPORTED_BROWSERS]
+    if invalid:
+        parser.error(
+            f"Unsupported browser value(s): {invalid}. "
+            f"Allowed: {list(SUPPORTED_BROWSERS)}"
+        )
+
+    deduped: List[str] = []
+    seen = set()
+    for browser in browsers:
+        if browser not in seen:
+            deduped.append(browser)
+            seen.add(browser)
+    return deduped
 
 
 def main() -> None:
@@ -228,7 +277,7 @@ def main() -> None:
         capture_screenshots=args.capture_screenshots,
         fetch_figma=args.fetch_figma,
         headless=not args.no_headless,
-        browser=args.browser,
+        browsers=args.browsers,
         report_name=args.report_name,
         page_load_timeout=args.page_load_timeout,
     )

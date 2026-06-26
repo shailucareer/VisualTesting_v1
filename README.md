@@ -159,12 +159,23 @@ python main.py --project opinion_route --fetch-figma
 
 Browser and timing:
 
-- `--browser {chrome|firefox|edge}`
+- `--browser BROWSERS` where values can be:
+  - missing flag: defaults to `chrome`
+  - single value: `firefox`
+  - multiple comma-separated values: `edge,firefox,chrome`
 - `--no-headless`
 - `--page-load-timeout SECONDS`
 
 ```bash
+# missing --browser -> defaults to chrome
+python main.py --project opinion_route
+
+# single browser
 python main.py --project opinion_route --browser firefox
+
+# multiple browsers (runs in provided order)
+python main.py --project opinion_route --browser edge,firefox,chrome
+
 python main.py --project opinion_route --no-headless
 python main.py --project opinion_route --page-load-timeout 60
 ```
@@ -223,4 +234,4 @@ Exit code:
 
 `Headless browser issues`
 
-- Try `--browser firefox` or use `--no-headless`.
+- Try `--browser firefox`, `--browser edge,firefox,chrome`, or use `--no-headless`.

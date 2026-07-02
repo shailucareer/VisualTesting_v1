@@ -30,7 +30,7 @@
 #   figma_access_token: 'figd_xxx'
 
 run_mode: 'all'
-baseline_mode: 'screenshot'
+baseline_mode: 'figma'
 figma_access_token:
 
 test_cases:
@@ -40,7 +40,7 @@ test_cases:
     device: Desktop
     figma_file_name: 1440_figma.png
     url: https://www.galaxyweblinks.com/
-    page_data_load_wait:
+    page_data_load_wait: 30
     figma_file_id: 
     figma_node_id: 
 

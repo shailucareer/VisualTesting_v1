@@ -38,8 +38,8 @@ test_cases:
   - name: desktop_qcflow
     run: true
     device: Desktop
-    figma_file_name: 1440_figma.png
-    url: https://opinionroutstg.wpengine.com/qcflow
+    figma_file_name: HomepageUpdated.png
+    url: https://saudiceramics-dev.galaxyweblinks.in/
     page_data_load_wait: 90
     figma_file_id: 
     figma_node_id: 
@@ -49,7 +49,7 @@ test_cases:
     device: Desktop
     figma_file_name: 1440_figma_invalid.png
     url: https://opinionroutstg.wpengine.com/qcflow
-    page_data_load_wait: 90
+    page_data_load_wait:
     figma_file_id: 
     figma_node_id: 
 
@@ -58,7 +58,7 @@ test_cases:
     device: Mobile
     figma_file_name: 375_figma.png
     url: https://opinionroutstg.wpengine.com/qcflow
-    page_data_load_wait: 90
+    page_data_load_wait:
     figma_file_id: 
     figma_node_id: 
 

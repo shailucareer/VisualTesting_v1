@@ -159,7 +159,7 @@ python main.py --project opinion_route --fetch-figma
 
 Browser and timing:
 
-- `--browser BROWSERS` where values can be:
+ - `--browser BROWSERS` where values can be:
   - missing flag: defaults to `chrome`
   - single value: `firefox`
   - multiple comma-separated values: `edge,firefox,chrome`

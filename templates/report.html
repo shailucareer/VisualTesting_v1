@@ -204,6 +204,121 @@
     .slider-lbl-left  { left: 8px; color: #7eb8f7; }
     .slider-lbl-right { right: 8px; color: #f2c078; }
 
+    /* Overlay modal comparison */
+    .overlay-range-wrap {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      width: min(420px, 100%);
+    }
+    .overlay-range-wrap input[type="range"] {
+      flex: 1 1 auto;
+      accent-color: #7eb8f7;
+    }
+    .overlay-opacity-value {
+      min-width: 52px;
+      text-align: right;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+    .overlay-help-text {
+      font-size: .76rem;
+      color: var(--text-secondary);
+      margin-top: .15rem;
+    }
+    .overlay-help-text strong {
+      color: var(--text-primary);
+    }
+    #overlayModal .modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      height: 100vh;
+      border-radius: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #overlayModal .modal-dialog {
+      max-width: 100vw;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+    }
+    #overlayModal .modal-header {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+    }
+    #overlayModal .modal-body {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: .75rem;
+      background: light-dark(#eef2f7, #0f1728);
+    }
+    .overlay-modal-stage {
+      position: relative;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      background: light-dark(#e8edf5, #0d1525);
+    }
+    .overlay-modal-stage.magnifier-enabled {
+      cursor: crosshair;
+    }
+    .overlay-modal-stage img {
+      width: 100%;
+      display: block;
+      height: auto;
+    }
+    .overlay-modal-foreground {
+      position: absolute;
+      inset: 0;
+      opacity: .5;
+      transition: opacity .12s linear;
+      pointer-events: none;
+    }
+    .overlay-magnifier {
+      position: fixed;
+      right: 1rem;
+      top: 5.25rem;
+      z-index: 1080;
+      width: 230px;
+      padding: .45rem;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: light-dark(rgba(255,255,255,.95), rgba(9,14,24,.9));
+      box-shadow: 0 8px 24px rgba(0,0,0,.28);
+      pointer-events: none;
+      display: none;
+    }
+    .overlay-magnifier .label {
+      font-size: .72rem;
+      color: var(--text-secondary);
+      margin-bottom: .35rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .overlay-magnifier canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 7px;
+      border: 1px solid var(--border-color);
+      background: light-dark(#f3f6fa, #101a2d);
+    }
+
+    @media (max-width: 768px) {
+      .overlay-range-wrap {
+        width: 100%;
+      }
+      #overlayModal .modal-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: .5rem;
+      }
+    }
+
     /* ── Meta info strip ────────────────────────────────────────── */
     .meta-strip {
       display: flex; flex-wrap: wrap; gap: .5rem;
@@ -515,6 +630,16 @@
               onclick="showSlider(this)" data-view="slider">
         <i class="bi bi-arrows-expand-vertical me-1"></i>Slider
       </button>
+      {% if test.baseline_path and test.actual_path %}
+      <button class="btn btn-sm btn-outline-secondary"
+              onclick="showOverlay(this)"
+              data-overlay-title="{{ test.name | e }}"
+              data-baseline-path="{{ test.baseline_path | e }}"
+              data-actual-path="{{ test.actual_path | e }}"
+              data-view="overlay">
+        <i class="bi bi-layers me-1"></i>Overlay
+      </button>
+      {% endif %}
     </div>
 
     <!-- Side-by-side panels -->
@@ -569,6 +694,7 @@
         <span class="slider-lbl slider-lbl-right">Actual</span>
       </div>
     </div>
+
     {% endif %}
 
     {% endif %}{# end if images exist #}
@@ -599,6 +725,43 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ -->
+<!--  OVERLAY MODAL                                                -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="overlayModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <div class="me-auto w-100">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <h6 class="modal-title mb-0" id="overlayModalLabel"></h6>
+            <label class="overlay-range-wrap mb-0" for="overlayModalOpacity">
+              <span>Foreground opacity</span>
+              <input type="range" id="overlayModalOpacity" min="0" max="100" value="50" oninput="updateOverlayModalOpacity(this)" />
+              <span class="overlay-opacity-value" id="overlayModalOpacityValue">50%</span>
+            </label>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="overlayMagnifierToggle" onclick="toggleOverlayMagnifier()">
+              Start Magnifier
+            </button>
+          </div>
+          <div class="overlay-help-text"><strong>Background:</strong> Figma/Baseline image. <strong>Foreground:</strong> Live screenshot.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="overlay-modal-stage" id="overlayModalStage">
+          <img id="overlayModalBaseline" src="" alt="Overlay baseline" />
+          <img id="overlayModalActual" src="" alt="Overlay actual" class="overlay-modal-foreground" />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="overlay-magnifier" id="overlayMagnifier">
+  <div class="label">Magnified Area</div>
+  <canvas id="overlayMagnifierCanvas" width="240" height="240"></canvas>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
 <!--  SCRIPTS                                                       -->
 <!-- ══════════════════════════════════════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
@@ -622,25 +785,35 @@ function toggleCard(header) {
 }
 
 // ── View toggle: side-by-side vs slider ─────────────────────────
+function setComparisonView(body, viewName) {
+  const sideBySideEl = body.querySelector(".side-by-side-view");
+  const sliderEl = body.querySelector(".slider-view");
+
+  if (sideBySideEl) {
+    sideBySideEl.style.display = viewName === "side" ? "block" : "none";
+  }
+  if (sliderEl) {
+    sliderEl.classList.toggle("active", viewName === "slider");
+  }
+
+  body.querySelectorAll(".view-toggle .btn").forEach(button => {
+    button.classList.toggle("active", button.dataset.view === viewName && viewName !== "overlay");
+  });
+}
+
 function showSideBySide(btn) {
   const body = btn.closest(".comparison-body");
-  body.querySelector(".side-by-side-view").style.display = "block";
-  const sliderEl = body.querySelector(".slider-view");
-  if (sliderEl) sliderEl.classList.remove("active");
-  body.querySelectorAll(".view-toggle .btn").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
+  setComparisonView(body, "side");
 }
 
 function showSlider(btn) {
   const body = btn.closest(".comparison-body");
-  body.querySelector(".side-by-side-view").style.display = "none";
-  const sliderEl = body.querySelector(".slider-view");
-  if (sliderEl) {
-    sliderEl.classList.add("active");
-    initSliders(body);
-  }
-  body.querySelectorAll(".view-toggle .btn").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
+  setComparisonView(body, "slider");
+  initSliders(body);
+}
+
+function showOverlay(btn) {
+  openOverlayModal(btn.dataset.overlayTitle, btn.dataset.baselinePath, btn.dataset.actualPath);
 }
 
 // ── Drag-slider initialisation ──────────────────────────────────
@@ -673,6 +846,177 @@ function initSliders(scope) {
     document.addEventListener("touchend",    ()  => { dragging = false; });
   });
 }
+
+// ── Overlay modal controls ──────────────────────────────────────
+function updateOverlayModalOpacity(input) {
+  const opacityValue = Number(input.value);
+  const actualEl = document.getElementById("overlayModalActual");
+  const valueEl = document.getElementById("overlayModalOpacityValue");
+  if (actualEl) {
+    actualEl.style.opacity = String(opacityValue / 100);
+  }
+  if (valueEl) {
+    valueEl.textContent = opacityValue + "%";
+  }
+  refreshOverlayMagnifier();
+}
+
+function openOverlayModal(title, baselineSrc, actualSrc) {
+  if (!baselineSrc || !actualSrc) return;
+
+  const modalEl = document.getElementById("overlayModal");
+  const labelEl = document.getElementById("overlayModalLabel");
+  const baselineEl = document.getElementById("overlayModalBaseline");
+  const actualEl = document.getElementById("overlayModalActual");
+  const sliderEl = document.getElementById("overlayModalOpacity");
+
+  labelEl.textContent = title ? title + " - Overlay" : "Overlay Comparison";
+  baselineEl.src = baselineSrc;
+  actualEl.src = actualSrc;
+  sliderEl.value = "50";
+  updateOverlayModalOpacity(sliderEl);
+  setupOverlayMagnifier();
+  setOverlayMagnifierEnabled(false);
+
+  if (window.bootstrap && bootstrap.Modal) {
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    return;
+  }
+
+  modalEl.classList.add("show", "is-open");
+  modalEl.style.display = "block";
+  modalEl.removeAttribute("aria-hidden");
+  document.body.classList.add("modal-open");
+}
+
+function closeOverlayModal() {
+  const modalEl = document.getElementById("overlayModal");
+  const magnifierEl = document.getElementById("overlayMagnifier");
+  if (window.bootstrap && bootstrap.Modal) {
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) {
+      modal.hide();
+      if (magnifierEl) magnifierEl.style.display = "none";
+      setOverlayMagnifierEnabled(false);
+      return;
+    }
+  }
+
+  modalEl.classList.remove("show", "is-open");
+  modalEl.style.display = "none";
+  modalEl.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+  if (magnifierEl) magnifierEl.style.display = "none";
+  setOverlayMagnifierEnabled(false);
+}
+
+let overlayMagnifierBound = false;
+let overlayMagnifierEnabled = false;
+let overlayMagnifierPoint = null;
+
+function drawOverlayMagnifier(clientX, clientY) {
+  const stageEl = document.getElementById("overlayModalStage");
+  const baselineEl = document.getElementById("overlayModalBaseline");
+  const actualEl = document.getElementById("overlayModalActual");
+  const sliderEl = document.getElementById("overlayModalOpacity");
+  const magnifierEl = document.getElementById("overlayMagnifier");
+  const canvasEl = document.getElementById("overlayMagnifierCanvas");
+  if (!stageEl || !baselineEl || !actualEl || !sliderEl || !magnifierEl || !canvasEl) return;
+  if (!baselineEl.complete || !actualEl.complete || !baselineEl.naturalWidth || !baselineEl.naturalHeight) return;
+
+  const rect = stageEl.getBoundingClientRect();
+  if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+    magnifierEl.style.display = "none";
+    return;
+  }
+
+  const relX = clientX - rect.left;
+  const relY = clientY - rect.top;
+  const nx = relX / rect.width * baselineEl.naturalWidth;
+  const ny = relY / rect.height * baselineEl.naturalHeight;
+
+  const ctx = canvasEl.getContext("2d");
+  if (!ctx) return;
+
+  const sourceSize = 95;
+  const half = sourceSize / 2;
+  const sx = Math.max(0, Math.min(baselineEl.naturalWidth - sourceSize, nx - half));
+  const sy = Math.max(0, Math.min(baselineEl.naturalHeight - sourceSize, ny - half));
+
+  ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  ctx.globalAlpha = 1;
+  ctx.drawImage(baselineEl, sx, sy, sourceSize, sourceSize, 0, 0, canvasEl.width, canvasEl.height);
+  ctx.globalAlpha = Number(sliderEl.value) / 100;
+  ctx.drawImage(actualEl, sx, sy, sourceSize, sourceSize, 0, 0, canvasEl.width, canvasEl.height);
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = "rgba(255,255,255,.9)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(canvasEl.width / 2, 0);
+  ctx.lineTo(canvasEl.width / 2, canvasEl.height);
+  ctx.moveTo(0, canvasEl.height / 2);
+  ctx.lineTo(canvasEl.width, canvasEl.height / 2);
+  ctx.stroke();
+
+  magnifierEl.style.display = "block";
+}
+
+function setOverlayMagnifierEnabled(enabled) {
+  const stageEl = document.getElementById("overlayModalStage");
+  const magnifierEl = document.getElementById("overlayMagnifier");
+  const toggleEl = document.getElementById("overlayMagnifierToggle");
+
+  overlayMagnifierEnabled = enabled;
+  overlayMagnifierPoint = null;
+
+  if (stageEl) {
+    stageEl.classList.toggle("magnifier-enabled", enabled);
+  }
+  if (magnifierEl && !enabled) {
+    magnifierEl.style.display = "none";
+  }
+  if (toggleEl) {
+    toggleEl.textContent = enabled ? "Stop Magnifier" : "Start Magnifier";
+    toggleEl.classList.toggle("btn-outline-danger", enabled);
+    toggleEl.classList.toggle("btn-outline-secondary", !enabled);
+    toggleEl.setAttribute("aria-pressed", enabled ? "true" : "false");
+  }
+}
+
+function toggleOverlayMagnifier() {
+  setOverlayMagnifierEnabled(!overlayMagnifierEnabled);
+  if (!overlayMagnifierEnabled) return;
+
+  const stageEl = document.getElementById("overlayModalStage");
+  if (!stageEl) return;
+  const rect = stageEl.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  overlayMagnifierPoint = { x: centerX, y: centerY };
+  drawOverlayMagnifier(centerX, centerY);
+}
+
+function refreshOverlayMagnifier() {
+  if (!overlayMagnifierEnabled || !overlayMagnifierPoint) return;
+  drawOverlayMagnifier(overlayMagnifierPoint.x, overlayMagnifierPoint.y);
+}
+
+function setupOverlayMagnifier() {
+  if (overlayMagnifierBound) return;
+  overlayMagnifierBound = true;
+
+  const stageEl = document.getElementById("overlayModalStage");
+  if (!stageEl) return;
+
+  stageEl.addEventListener("click", event => {
+    if (!overlayMagnifierEnabled) return;
+    overlayMagnifierPoint = { x: event.clientX, y: event.clientY };
+    drawOverlayMagnifier(event.clientX, event.clientY);
+  });
+}
+
+window.toggleOverlayMagnifier = toggleOverlayMagnifier;
 
 // ── Filter tests ────────────────────────────────────────────────
 function filterTests(status, btn) {
@@ -725,13 +1069,21 @@ document.getElementById("imgModal").addEventListener("click", event => {
   }
 });
 
+document.getElementById("overlayModal").addEventListener("click", event => {
+  if (event.target.id === "overlayModal") {
+    closeOverlayModal();
+  }
+});
+
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") {
     closeModal();
+    closeOverlayModal();
   }
 });
 
 document.querySelector('#imgModal [data-bs-dismiss="modal"]').addEventListener("click", closeModal);
+document.querySelector('#overlayModal [data-bs-dismiss="modal"]').addEventListener("click", closeOverlayModal);
 
 // ── Theme Detection ─────────────────────────────────────────────
 function detectAndApplyTheme() {

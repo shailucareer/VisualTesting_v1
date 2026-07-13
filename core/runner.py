@@ -97,6 +97,7 @@ class TestRunner:
         browsers: Optional[List[str]] = None,
         report_name: Optional[str] = None,
         page_load_timeout: int = 60,
+        match_figma_height: bool = False,
     ):
         self.project = project
         self.requested_baseline_mode = baseline_mode
@@ -108,6 +109,7 @@ class TestRunner:
         self.tile_size = tile_size
         self.dpr = dpr
         self.capture_screenshots = capture_screenshots
+        self.match_figma_height = match_figma_height
         self.fetch_figma = fetch_figma
         self.headless = headless
         if browsers:
@@ -220,6 +222,7 @@ class TestRunner:
         params["tile_size"] = self.tile_size
         params["dpr"] = self.dpr
         params["capture_screenshots"] = self.capture_screenshots
+        params["match_figma_height"] = self.match_figma_height
         params["fetch_figma"] = self.fetch_figma
         params["headless"] = self.headless
         params["browser"] = ", ".join(self.browsers)
@@ -495,6 +498,7 @@ class TestRunner:
                     height=device_cfg["height"],
                     figma_image_width=figma_image_width,
                     figma_image_height=figma_image_height,
+                    match_figma_height=self.match_figma_height,
                 )
                 self._log(f"    -> Screenshot saved: {Path(screenshot_path).name}")
 
@@ -558,8 +562,9 @@ class TestRunner:
                 dpr=self.dpr,
                 max_diff_pct=self.max_diff_pct,
                 diff_sensitivity=self.diff_sensitivity,
-                           tile_threshold=self.tile_threshold,
-                           tile_size=self.tile_size,
+                tile_threshold=self.tile_threshold,
+                tile_size=self.tile_size,
+                match_figma_height=self.match_figma_height,
             ).compare(
                 baseline_path=baseline_path,
                 actual_path=actual_path,

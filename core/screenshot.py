@@ -60,6 +60,7 @@ class ScreenshotCapture:
         height: int = 900,
         figma_image_width: Optional[int] = None,
         figma_image_height: Optional[int] = None,
+        match_figma_height: bool = False,
     ) -> str:
         """
         Navigate to *url*, wait for the page to settle, then save a
@@ -127,14 +128,14 @@ class ScreenshotCapture:
                 ");"
             )
             # Final capture size aligns to Figma width (when provided) and uses
-            # max(default height, live post-scroll height, Figma height).
+            # the actual rendered page height. The comparison step will scale
+            # the actual screenshot to match Figma height when the user requests it.
             default_width = int(width)
             figma_width = int(figma_image_width or 0)
             target_width = figma_width if figma_width > 0 else default_width
             default_height = int(height)
             live_height = int(post_scroll_height)
-            figma_height = int(figma_image_height or 0)
-            final_height = max(default_height, live_height, figma_height)
+            final_height = max(default_height, live_height)
             logger.info(
                 "Width selection for capture: "
                 f"default_width={default_width}, "
@@ -145,8 +146,8 @@ class ScreenshotCapture:
                 "Height selection for capture: "
                 f"default_height={default_height}, "
                 f"post_scroll_height={live_height}, "
-                f"figma_image_height={figma_height}, "
-                f"final_height={final_height}"
+                f"final_height={final_height}, "
+                f"match_figma_height={match_figma_height}"
             )
             self._set_window_size_with_viewport_alignment(
                 driver=driver,

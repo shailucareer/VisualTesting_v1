@@ -150,10 +150,12 @@ python main.py --project opinion_route --dpr 2.0
 Actions:
 
 - `--capture-screenshots`
+- `--match-figma-height`
 - `--fetch-figma`
 
 ```bash
 python main.py --project opinion_route --capture-screenshots
+python main.py --project opinion_route --capture-screenshots --match-figma-height
 python main.py --project opinion_route --fetch-figma
 ```
 

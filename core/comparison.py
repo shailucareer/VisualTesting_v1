@@ -114,6 +114,7 @@ class ImageComparator:
         diff_sensitivity: int = 30,
         tile_threshold: float = 0.85,
         tile_size: int = 200,
+        match_figma_height: bool = False,
     ):
         if not 0.0 < threshold <= 1.0:
             raise ValueError("threshold must be in (0.0, 1.0]")
@@ -133,6 +134,7 @@ class ImageComparator:
         self.diff_sensitivity = diff_sensitivity
         self.tile_threshold = tile_threshold
         self.tile_size = tile_size
+        self.match_figma_height = match_figma_height
 
     # ------------------------------------------------------------------
     # Public API
@@ -168,7 +170,7 @@ class ImageComparator:
 
         # ── Step 2: Size normalisation ─────────────────────────────────
         baseline_img, actual_img, normalization_summary = self._normalise_sizes(
-            baseline_img, actual_img
+            baseline_img, actual_img, self.match_figma_height
         )
         logger.debug(
             f"After normalisation: baseline={baseline_img.size}  actual={actual_img.size}"
@@ -312,7 +314,7 @@ class ImageComparator:
 
     @staticmethod
     def _normalise_sizes(
-        baseline: Image.Image, actual: Image.Image
+        baseline: Image.Image, actual: Image.Image, match_figma_height: bool
     ) -> Tuple[Image.Image, Image.Image, str]:
         bw, bh = baseline.size
         aw, ah = actual.size
@@ -325,7 +327,18 @@ class ImageComparator:
             aw, ah = actual.size
             notes.append(f"actual_width_scaled_to_baseline(scale={scale:.4f})")
 
-        target_h = max(bh, ah)
+        # When requested, make the actual screenshot match the baseline
+        # image exactly (width and height). This mirrors the common image
+        # editor workflow of placing both images at identical canvas
+        # dimensions and adjusting opacity to visually compare.
+        if match_figma_height:
+            actual = actual.resize((bw, bh), Image.LANCZOS)
+            aw, ah = actual.size
+            notes.append("actual_resized_exact_to_baseline")
+            target_h = bh
+        else:
+            target_h = max(bh, ah)
+
         if bh < target_h:
             canvas = Image.new("RGB", (bw, target_h), (255, 255, 255))
             canvas.paste(baseline, (0, 0))

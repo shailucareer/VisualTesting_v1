@@ -82,6 +82,10 @@ For each selected test:
   - If `--fetch-figma` is used and (`figma_access_token` + `figma_file_id`) are present: call Figma API and fetch file JSON metadata.
   - Baseline PNG is expected as a local file in `figma_images/`.
 3. Capture live screenshot if `--capture-screenshots` is enabled.
+  - Browser scrolls through page to trigger lazy-loaded content.
+  - Capture viewport is expanded to target dimensions.
+  - Just before saving, the framework checks if a vertical scrollbar is still present and increases viewport height until no scroll remains (best effort with retry cap).
+  - Final screenshot is saved after returning to top of page.
 4. Resolve comparison pair:
    - `figma` mode: baseline = Figma image, actual = latest screenshot.
    - `screenshot` mode: baseline = previous screenshot, actual = latest screenshot.
@@ -136,6 +140,7 @@ If values are blank, API call is skipped and local baseline image is used.
 - Test start/skip/failure/pass events
 - Figma API download attempts or skip reasons
 - Screenshot capture actions
+  - viewport size selection and vertical-scroll pre-capture checks
 - SSIM scores and comparison outcomes
 - Report generation path
 

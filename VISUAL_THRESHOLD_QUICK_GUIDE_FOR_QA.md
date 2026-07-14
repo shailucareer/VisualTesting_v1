@@ -99,8 +99,12 @@ Case B: "Result failed, but change is acceptable"
 
 Case C: "Page looked incomplete in screenshot"
 
-1. Increase page_data_load_wait for that test in testcases.yaml.
-2. If navigation itself times out, increase --page-load-timeout.
+1. The capture step now auto-checks for vertical scrollbar right before save and increases viewport height to remove it (best effort).
+2. Check logs for lines such as:
+  - `Pre-capture vertical scroll check ...`
+  - `Vertical scrollbar detected; increasing viewport height ...`
+3. Increase page_data_load_wait for that test in testcases.yaml.
+4. If navigation itself times out, increase --page-load-timeout.
 
 Example test case setting in testcases.yaml:
 
@@ -131,4 +135,4 @@ Case D: "Headless browser is unstable"
 	- generated report.html
 	- reports/history.html
 
-Last updated: June 25, 2026
+Last updated: July 13, 2026

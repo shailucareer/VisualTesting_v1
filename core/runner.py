@@ -49,6 +49,7 @@ class TestResult:
     error_message: Optional[str] = None
     screenshot_path: Optional[str] = None
     baseline_path: Optional[str] = None
+    baseline_source: Optional[str] = None
     browser: Optional[str] = None
 
 
@@ -97,6 +98,7 @@ class TestRunner:
         browsers: Optional[List[str]] = None,
         report_name: Optional[str] = None,
         page_load_timeout: int = 60,
+        match_figma_height: bool = False,
     ):
         self.project = project
         self.requested_baseline_mode = baseline_mode
@@ -108,6 +110,7 @@ class TestRunner:
         self.tile_size = tile_size
         self.dpr = dpr
         self.capture_screenshots = capture_screenshots
+        self.match_figma_height = match_figma_height
         self.fetch_figma = fetch_figma
         self.headless = headless
         if browsers:
@@ -220,6 +223,7 @@ class TestRunner:
         params["tile_size"] = self.tile_size
         params["dpr"] = self.dpr
         params["capture_screenshots"] = self.capture_screenshots
+        params["match_figma_height"] = self.match_figma_height
         params["fetch_figma"] = self.fetch_figma
         params["headless"] = self.headless
         params["browser"] = ", ".join(self.browsers)
@@ -417,26 +421,46 @@ class TestRunner:
         baseline_path: Optional[str] = None
 
         try:
-            # ── Fetch Figma JSON data ──────────────────────────────────
-            figma_path = self.figma_dir / tc.figma_file_name
-            
+            figma_file_name = (tc.figma_file_name or "").strip() or f"{tc.name}_figma.png"
+            figma_path = self.figma_dir / figma_file_name
+            baseline_source = "local Figma image"
+
             # Skip API call if figma_file_id is blank (None or empty string)
             has_file_id = tc.figma_file_id and str(tc.figma_file_id).strip()
             has_token = tc.figma_access_token and str(tc.figma_access_token).strip()
-            
-            if has_file_id and has_token:
-                self._log("    -> Fetching Figma JSON data...")
+            has_node_id = tc.figma_node_id and str(tc.figma_node_id).strip()
+
+            if has_file_id and has_token and has_node_id:
+                self._log("    -> Downloading Figma node PNG for comparison...")
                 try:
-                    FigmaClient(tc.figma_access_token).fetch_file_data(
-                        file_id=tc.figma_file_id
+                    client = FigmaClient(tc.figma_access_token)
+                    client.fetch_file_data(file_id=tc.figma_file_id)
+                    downloaded_path = client.download_node_image(
+                        file_id=tc.figma_file_id,
+                        node_id=tc.figma_node_id,
+                        output_path=figma_path,
                     )
-                    self._log(f"    -> Figma JSON data fetched successfully")
+                    figma_path = Path(downloaded_path)
+                    baseline_source = "downloaded Figma node"
+                    self._log(f"    -> Figma image downloaded successfully: {figma_path.name}")
                 except Exception as exc:
-                    logger.error(f"Failed to fetch Figma JSON data: {exc}")
+                    logger.error(f"Failed to download Figma image: {exc}")
                     return TestResult(
                         test_case=tc,
                         status="error",
-                        error_message=f"Failed to fetch Figma JSON data: {exc}",
+                        error_message=f"Failed to download Figma image: {exc}",
+                    )
+            elif has_file_id and has_token:
+                self._log("    -> Fetching Figma metadata...")
+                try:
+                    FigmaClient(tc.figma_access_token).fetch_file_data(file_id=tc.figma_file_id)
+                    self._log("    -> Figma metadata fetched successfully")
+                except Exception as exc:
+                    logger.error(f"Failed to fetch Figma metadata: {exc}")
+                    return TestResult(
+                        test_case=tc,
+                        status="error",
+                        error_message=f"Failed to fetch Figma metadata: {exc}",
                     )
             elif has_file_id and not has_token:
                 self._log(
@@ -495,12 +519,14 @@ class TestRunner:
                     height=device_cfg["height"],
                     figma_image_width=figma_image_width,
                     figma_image_height=figma_image_height,
+                    match_figma_height=self.match_figma_height,
                 )
                 self._log(f"    -> Screenshot saved: {Path(screenshot_path).name}")
 
             # ── Determine baseline / actual paths ──────────────────────
             if self.baseline_mode == "figma":
                 baseline_path = str(figma_path)
+                baseline_source = baseline_source if baseline_source else "Figma image"
                 if not screenshot_path:
                     screenshot_path = self._latest_screenshot(tc.name, browser=self.browser)
                 if not screenshot_path:
@@ -536,6 +562,7 @@ class TestRunner:
                     # Graceful fallback: use Figma image if available
                     if figma_path.exists():
                         baseline_path = str(figma_path)
+                        baseline_source = baseline_source if baseline_source else "Figma image"
                         self._log(
                             "    -> No previous screenshot found - "
                             "using Figma image as baseline."
@@ -558,8 +585,9 @@ class TestRunner:
                 dpr=self.dpr,
                 max_diff_pct=self.max_diff_pct,
                 diff_sensitivity=self.diff_sensitivity,
-                           tile_threshold=self.tile_threshold,
-                           tile_size=self.tile_size,
+                tile_threshold=self.tile_threshold,
+                tile_size=self.tile_size,
+                match_figma_height=self.match_figma_height,
             ).compare(
                 baseline_path=baseline_path,
                 actual_path=actual_path,
@@ -573,6 +601,7 @@ class TestRunner:
                 comparison=comparison,
                 screenshot_path=actual_path,
                 baseline_path=baseline_path,
+                baseline_source=baseline_source,
                 browser=self.browser,
             )
 

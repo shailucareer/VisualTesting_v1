@@ -39,16 +39,17 @@ test_cases:
     run: true
     device: Desktop
     figma_file_name: GWL_figma.png
-    url: https://www.galaxyweblinks.com/
+    url: https://www.galaxyweblinks.com
     page_data_load_wait:
     figma_file_id: 
     figma_node_id: 
 
-  # Example: mobile variant of the same page (add your own node_id)
-  # - name: mobile_qcflow
-  #   run: false
-  #   device: Mobile
-  #   figma_file_name: 375_figma.png
-  #   url: https://opinionroutstg.wpengine.com/qcflow
-  #   figma_file_id: hritOi8jFNn2Zvf6ilrZwB
-  #   figma_node_id: '1202-3200'
+  #Example: mobile variant of the same page (add your own node_id)
+  - name: mobile_qcflow
+    run: false
+    device: Mobile
+    figma_file_name: Mobile_blog.png
+    url: https://www.galaxyweblinks.com/blog
+    page_data_load_wait:
+    figma_file_id: 
+    figma_node_id:

@@ -511,9 +511,6 @@
                 {% if report.runtime_parameters and report.runtime_parameters.get('baseline_mode') %}
                 <span><b>Baseline:</b> {{ report.runtime_parameters.get('baseline_mode') }}</span>
                 {% endif %}
-                {% if report.runtime_parameters and report.runtime_parameters.get('run_mode') %}
-                <span><b>Run Mode:</b> {{ report.runtime_parameters.get('run_mode') }}</span>
-                {% endif %}
                 {% if report.runtime_parameters and report.runtime_parameters.get('threshold') is not none %}
                 <span><b>Threshold:</b> {{ report.runtime_parameters.get('threshold') }}</span>
                 {% endif %}

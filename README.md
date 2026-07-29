@@ -17,7 +17,6 @@ Python-based visual regression framework for comparing live screenshots against 
 - Baseline mode `auto` is non-interactive.
   - No previous screenshot found: uses `figma`
   - Previous screenshot found: uses `screenshot`
-  - Resolved mode is written back to `testcases.yaml`
 - `--fetch-figma` fetches Figma file JSON metadata only.
   - It does not download baseline PNGs.
   - Baseline image files must exist in `projects/<project>/figma_images/`.
@@ -39,7 +38,7 @@ VisualTesting_v1/
 |  \- report.html
 \- projects/
    \- <project>/
-      |- testcases.yaml
+      |- testcases.csv
       |- figma_images/
       |- screenshots/
       |- diffs/
@@ -64,30 +63,21 @@ pip install -r requirements.txt
 
 ## Testcase Configuration
 
-Example `projects/<project>/testcases.yaml`:
+Example `projects/<project>/testcases.csv`:
 
-```yaml
-run_mode: selected
-baseline_mode: auto
-figma_access_token: figd_your_token_here
-
-test_cases:
-  - name: desktop_homepage
-    run: true
-    device: Desktop
-    figma_file_name: 1440_figma.png
-    url: https://example.com/
-    figma_file_id: abc123def456
+```csv
+name,run,device,figma_file_name,url,page_data_load_wait,figma_file_id,figma_node_id
+desktop_homepage,Y,Desktop,1440_figma.png,https://example.com/,3,abc123def456,
 ```
 
 Common fields:
 
-- `run_mode`: `all`, `selected`, or a specific test name
-- `baseline_mode`: `auto`, `figma`, `screenshot`
-- `figma_access_token`: optional global token (can be overridden per test)
 - Per test:
   - `name`, `run`, `device`, `figma_file_name`, `url`
+  - `run` accepts `Y/N`, `true/false`, `yes/no`, or `1/0`
+  - `page_data_load_wait` is optional and defaults to `3`
   - `figma_file_id` is optional and used by `--fetch-figma`
+  - `figma_node_id` is optional
 
 ## Quick Start
 
@@ -116,11 +106,13 @@ python main.py -p opinion_route
 Baseline behavior:
 
 - `--baseline-mode {auto|figma|screenshot}`
+- `--figma-access-token TOKEN`
 
 ```bash
 python main.py --project opinion_route --baseline-mode auto
 python main.py --project opinion_route --baseline-mode figma
 python main.py --project opinion_route --baseline-mode screenshot
+python main.py --project opinion_route --figma-access-token figd_your_token_here --fetch-figma
 ```
 
 Comparison quality:
@@ -216,9 +208,9 @@ Exit code:
 
 ## Troubleshooting
 
-`testcases.yaml not found`
+`testcases.csv not found`
 
-- Ensure `projects/<project>/testcases.yaml` exists.
+- Ensure `projects/<project>/testcases.csv` exists.
 
 `No screenshot available`
 

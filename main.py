@@ -19,7 +19,8 @@ Usage examples
 # Tighter threshold (99% similarity required):
     python main.py --project qcflow --threshold 0.99
 
-# Fetch Figma JSON data (requires figma_access_token and figma_file_id in testcases.yaml):
+# Fetch Figma JSON data and (for figma baseline) download node image
+# (requires --figma-access-token, figma_file_id, and figma_node_id in testcases.csv):
     python main.py --project qcflow --fetch-figma
 """
 
@@ -136,11 +137,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--fetch-figma",
         action="store_true",
         help=(
-            "Fetch Figma JSON file data for design analysis.\n"
-            "Requires header-level figma_access_token and per-test\n"
-            "figma_file_id in testcases.yaml. User must provide\n"
-            "the expected Figma image in the figma folder."
+            "Fetch Figma JSON metadata.\n"
+            "When baseline-mode is 'figma', also exports node PNG from Figma and\n"
+            "uses it as baseline for comparison (requires figma_file_id +\n"
+            "figma_node_id in testcases.csv and --figma-access-token)."
         ),
+    )
+    parser.add_argument(
+        "--figma-access-token",
+        default=None,
+        metavar="TOKEN",
+        help="Figma access token used for --fetch-figma requests.",
     )
 
     # ── Browser options ───────────────────────────────────────────
@@ -217,9 +224,9 @@ def validate_args(args, parser: argparse.ArgumentParser) -> None:
             f"Available projects: {available or 'none'}"
         )
 
-    testcases_path = project_path / "testcases.yaml"
+    testcases_path = project_path / "testcases.csv"
     if not testcases_path.exists():
-        parser.error(f"testcases.yaml not found at '{testcases_path.resolve()}'")
+        parser.error(f"testcases.csv not found at '{testcases_path.resolve()}'")
 
 
 def _normalize_browsers(raw_values, parser: argparse.ArgumentParser) -> List[str]:
@@ -268,6 +275,7 @@ def main() -> None:
     runner = TestRunner(
         project=args.project,
         baseline_mode=args.baseline_mode,
+        figma_access_token=args.figma_access_token,
         threshold=args.threshold,
         max_diff_pct=args.max_diff_pct,
         diff_sensitivity=args.diff_sensitivity,

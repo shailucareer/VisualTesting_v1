@@ -1,0 +1,5 @@
+name,run,device,figma_file_name,url,page_data_load_wait,figma_file_id,figma_node_id
+desktop_qcflow,Y,Desktop,About_Us.png,https://www.galaxyweblinks.com/about-us,60,c0OeBgm7hKf4Kgqq6lSn8l,3254:8491
+desktop_qcflow1,Y,Mobile,1440_figma.png,https://www.galaxyweblinks.com/about-us,60,c0OeBgm7hKf4Kgqq6lSn8l,2469:18476
+desktop_qcflow2,N,Mobile,1440_figma.png,https://www.galaxyweblinks.com/about-us,60,c0OeBgm7hKf4Kgqq6lSn8l,3254:8491
+desktop_qcflow3,N,Desktop,1440_figma.png,https://www.galaxyweblinks.com/about-us,60,c0OeBgm7hKf4Kgqq6lSn8l,3254:8491

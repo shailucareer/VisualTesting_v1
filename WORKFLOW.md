@@ -26,24 +26,19 @@ Primary CLI options:
 
 ### 1.2 Project Configuration Input
 
-Source: `projects/<project>/testcases.yaml`
-
-Top-level keys:
-
-- `run_mode`: test execution selection mode
-  - `all`: execute every listed test case
-  - `selected`: execute only test cases with `run: true`
-  - `<test_name>`: execute one specific test by name
-- `baseline_mode`:
-  - `auto`: first-run uses Figma; later runs use previous screenshot when available, then persist selection
-  - `figma`: always compare against Figma image
-  - `screenshot`: compare against previous execution screenshot
-- `figma_access_token`: global token used for Figma API calls
+Source: `projects/<project>/testcases.csv`
 
 Per test case:
 
 - `name`, `run`, `device`, `figma_file_name`, `url`
+- `page_data_load_wait` (optional)
 - `figma_file_id` (optional, used for Figma file metadata fetch)
+- `figma_node_id` (optional)
+
+Runtime-only inputs:
+
+- `--baseline-mode`
+- `--figma-access-token`
 
 ### 1.3 File System Inputs
 
@@ -56,22 +51,21 @@ Per test case:
 ### Step 1: Startup and Validation
 
 1. CLI arguments are parsed.
-2. Project folder and `testcases.yaml` are validated.
+2. Project folder and `testcases.csv` are validated.
 3. Runner is initialized with runtime options.
 
 ### Step 2: Configuration Loading
 
-1. `testcases.yaml` is read.
-2. `run_mode` is resolved into an executable test list.
-3. `baseline_mode` is resolved (CLI override or YAML-driven behavior).
-4. Global `figma_access_token` is applied to test cases by default.
+1. `testcases.csv` is read.
+2. Rows with `run=true` are executed; rows with `run=false` remain visible as skipped.
+3. `baseline_mode` is resolved from CLI input or auto-detected at runtime.
+4. CLI `figma_access_token` is applied to Figma API calls when provided.
 
 ### Step 3: Baseline Resolution
 
 1. If baseline mode is `auto`:
    - If no previous screenshot exists for runnable tests: use `figma`.
   - If previous screenshot exists: use `screenshot`.
-2. Resolved baseline mode is persisted back into `testcases.yaml`.
 
 ### Step 4: Per-Test Execution
 
@@ -99,23 +93,22 @@ For each selected test:
 
 ### 3.1 Test Selection Logic
 
-- `run_mode=all`: ignore per-test `run` flag and execute all listed tests.
-- `run_mode=selected`: execute only `run: true`; mark others as skipped.
-- `run_mode=<test_name>`: execute only the matching test; error if not found.
+- `run=true`: execute the test case.
+- `run=false`: mark the test as skipped in the report.
 
 ### 3.2 Baseline Logic
 
 Priority order:
 
 1. CLI `--baseline-mode` if not `auto`
-2. YAML `baseline_mode` if it is `figma` or `screenshot`
-3. Auto-detection behavior when YAML is `auto`
+2. Auto-detection behavior when CLI mode is `auto`
 
 ### 3.3 Figma Metadata Fetch Logic
 
 Figma API is called only when all required values are present:
 
 - global/per-test `figma_access_token`
+- CLI `--figma-access-token`
 - `figma_file_id`
 
 If values are blank, API call is skipped and local baseline image is used.
@@ -132,7 +125,7 @@ If values are blank, API call is skipped and local baseline image is used.
 ### 4.1 What Is Logged
 
 - Run initialization and configuration
-- Mode resolution (`run_mode`, `baseline_mode`)
+- Baseline mode resolution (`baseline_mode`)
 - Test start/skip/failure/pass events
 - Figma API download attempts or skip reasons
 - Screenshot capture actions
@@ -172,4 +165,4 @@ If values are blank, API call is skipped and local baseline image is used.
 | `figma_file_id` missing | Skip Figma API call |
 | Manual Figma file exists | Use manual file for comparison |
 | Screenshot baseline unavailable | Fallback to Figma baseline if available |
-| Named test in `run_mode` not found | Stop with validation error |
+| `testcases.csv` missing required columns | Stop with validation error |

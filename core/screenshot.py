@@ -60,6 +60,7 @@ class ScreenshotCapture:
         height: int = 900,
         figma_image_width: Optional[int] = None,
         figma_image_height: Optional[int] = None,
+        match_figma_height: bool = False,
     ) -> str:
         """
         Navigate to *url*, wait for the page to settle, then save a
@@ -127,14 +128,14 @@ class ScreenshotCapture:
                 ");"
             )
             # Final capture size aligns to Figma width (when provided) and uses
-            # max(default height, live post-scroll height, Figma height).
+            # the actual rendered page height. The comparison step will scale
+            # the actual screenshot to match Figma height when the user requests it.
             default_width = int(width)
             figma_width = int(figma_image_width or 0)
             target_width = figma_width if figma_width > 0 else default_width
             default_height = int(height)
             live_height = int(post_scroll_height)
-            figma_height = int(figma_image_height or 0)
-            final_height = max(default_height, live_height, figma_height)
+            final_height = max(default_height, live_height)
             logger.info(
                 "Width selection for capture: "
                 f"default_width={default_width}, "
@@ -145,8 +146,8 @@ class ScreenshotCapture:
                 "Height selection for capture: "
                 f"default_height={default_height}, "
                 f"post_scroll_height={live_height}, "
-                f"figma_image_height={figma_height}, "
-                f"final_height={final_height}"
+                f"final_height={final_height}, "
+                f"match_figma_height={match_figma_height}"
             )
             self._set_window_size_with_viewport_alignment(
                 driver=driver,
@@ -159,6 +160,22 @@ class ScreenshotCapture:
             logger.info(f"Scroll back to the very top after resize so the header is visible")
             driver.execute_script("window.scrollTo(0, 0);")
             time.sleep(0.3)
+
+            # Ensure no vertical scrollbar remains before saving the screenshot.
+            # This avoids cutting off bottom content in pages with late height growth.
+            final_height = self._expand_height_until_no_vertical_scroll(
+                driver=driver,
+                target_width=target_width,
+                initial_height=final_height,
+            )
+            logger.info(
+                "Pre-capture scroll check completed: "
+                f"capture_height={final_height}"
+            )
+
+            # Re-anchor to top after any final viewport expansion.
+            driver.execute_script("window.scrollTo(0, 0);")
+            time.sleep(0.2)
 
             os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
             driver.save_screenshot(output_path)
@@ -233,6 +250,78 @@ class ScreenshotCapture:
             "Final viewport size before screenshot: "
             f"{int(final_viewport.get('width', 0))}x{int(final_viewport.get('height', 0))}"
         )
+
+    def _get_vertical_scroll_metrics(self, driver):
+        metrics = driver.execute_script(
+            "const body = document.body || {};"
+            "const docEl = document.documentElement || {};"
+            "const scrollHeight = Math.max(body.scrollHeight || 0, docEl.scrollHeight || 0);"
+            "const viewportHeight = Math.max(docEl.clientHeight || 0, window.innerHeight || 0);"
+            "const overflow = scrollHeight - viewportHeight;"
+            "return {"
+            "  scrollHeight: Math.floor(scrollHeight),"
+            "  viewportHeight: Math.floor(viewportHeight),"
+            "  overflow: Math.floor(overflow),"
+            "  hasVerticalScroll: overflow > 1"
+            "};"
+        )
+        return {
+            "scroll_height": int(metrics.get("scrollHeight", 0)),
+            "viewport_height": int(metrics.get("viewportHeight", 0)),
+            "overflow": int(metrics.get("overflow", 0)),
+            "has_vertical_scroll": bool(metrics.get("hasVerticalScroll", False)),
+        }
+
+    def _expand_height_until_no_vertical_scroll(
+        self,
+        driver,
+        target_width: int,
+        initial_height: int,
+        max_attempts: int = 5,
+        min_growth: int = 80,
+        padding: int = 24,
+    ) -> int:
+        target_height = int(initial_height)
+        for attempt in range(1, max_attempts + 1):
+            metrics = self._get_vertical_scroll_metrics(driver)
+            logger.info(
+                "Pre-capture vertical scroll check "
+                f"{attempt}/{max_attempts}: "
+                f"has_vertical_scroll={metrics['has_vertical_scroll']}, "
+                f"scroll_height={metrics['scroll_height']}, "
+                f"viewport_height={metrics['viewport_height']}, "
+                f"overflow={metrics['overflow']}"
+            )
+
+            if not metrics["has_vertical_scroll"]:
+                logger.info("No vertical scrollbar detected before screenshot capture")
+                return target_height
+
+            growth = max(min_growth, metrics["overflow"] + padding)
+            target_height += growth
+            logger.info(
+                "Vertical scrollbar detected; increasing viewport height before capture: "
+                f"growth={growth}, next_target_height={target_height}"
+            )
+            self._set_window_size_with_viewport_alignment(
+                driver=driver,
+                target_width=target_width,
+                target_height=target_height,
+            )
+            time.sleep(0.2)
+
+        final_metrics = self._get_vertical_scroll_metrics(driver)
+        if final_metrics["has_vertical_scroll"]:
+            logger.warning(
+                "Vertical scrollbar still present after max pre-capture resize attempts: "
+                f"scroll_height={final_metrics['scroll_height']}, "
+                f"viewport_height={final_metrics['viewport_height']}, "
+                f"overflow={final_metrics['overflow']}"
+            )
+        else:
+            logger.info("Vertical scrollbar resolved on final pre-capture resize attempt")
+
+        return target_height
 
     def _chrome_driver(self, width: int, height: int):
         opts = ChromeOptions()

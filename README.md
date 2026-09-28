@@ -5,6 +5,7 @@ Python-based visual regression framework for comparing live screenshots against 
 ## What It Does
 
 - Captures live screenshots with Selenium (Chrome, Firefox, Edge)
+- Before saving screenshots, auto-expands viewport height until no vertical scroll is present (best-effort with retry cap)
 - Compares images using three checks:
   - Global SSIM
   - Significant pixel-diff percentage
@@ -142,10 +143,12 @@ python main.py --project opinion_route --dpr 2.0
 Actions:
 
 - `--capture-screenshots`
+- `--match-figma-height`
 - `--fetch-figma`
 
 ```bash
 python main.py --project opinion_route --capture-screenshots
+python main.py --project opinion_route --capture-screenshots --match-figma-height
 python main.py --project opinion_route --fetch-figma
 ```
 
@@ -215,6 +218,11 @@ Exit code:
 `No screenshot available`
 
 - Run with `--capture-screenshots` first.
+
+`Page looks cut off at bottom`
+
+- The screenshot step now checks for vertical scroll just before save and increases height until the page fits (best effort).
+- If content still appears incomplete, increase per-test `page_data_load_wait` in `testcases.yaml` so lazy content has more time to render.
 
 `Figma image not found`
 

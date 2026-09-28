@@ -126,4 +126,4 @@ Case D: "Headless browser is unstable"
 	- generated report.html
 	- reports/history.html
 
-Last updated: June 25, 2026
+Last updated: July 13, 2026

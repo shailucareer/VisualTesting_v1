@@ -134,6 +134,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Capture fresh screenshots via Selenium before comparing.",
     )
     parser.add_argument(
+        "--match-figma-height",
+        action="store_true",
+        help=(
+            "When capturing screenshots, expand the capture height to match "
+            "the Figma image height when the live page is shorter. "
+            "This prevents a shorter screenshot from being compared against "
+            "a taller Figma design without cropping the website."
+        ),
+    )
+    parser.add_argument(
         "--fetch-figma",
         action="store_true",
         help=(
@@ -283,6 +293,7 @@ def main() -> None:
         tile_size=args.tile_size,
         dpr=args.dpr,
         capture_screenshots=args.capture_screenshots,
+        match_figma_height=args.match_figma_height,
         fetch_figma=args.fetch_figma,
         headless=not args.no_headless,
         browsers=args.browsers,

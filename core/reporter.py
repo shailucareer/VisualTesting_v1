@@ -59,6 +59,8 @@ class ReportGenerator:
                 "device":        result.test_case.device,
                 "url":           result.test_case.url,
                 "figma_file_name": result.test_case.figma_file_name,
+                "figma_file_id": result.test_case.figma_file_id,
+                "figma_node_id": result.test_case.figma_node_id,
                 "page_data_load_wait": result.test_case.page_data_load_wait,
                 "status":        result.status,
                 "error_message": result.error_message,
@@ -77,6 +79,7 @@ class ReportGenerator:
                 "normalization_summary":    None,
                 "dpr_adjusted":      False,
                 "baseline_path":     None,
+                "baseline_source":   None,
                 "actual_path":       None,
                 "diff_path":         None,
             }
@@ -109,6 +112,9 @@ class ReportGenerator:
                 item["baseline_path"] = self._copy_image(cmp.baseline_path, images_dir, "baseline")
                 item["actual_path"]   = self._copy_image(cmp.actual_path, images_dir, "actual")
                 item["diff_path"]     = self._copy_image(cmp.diff_image_path, images_dir, "diff")
+
+            if getattr(result, "baseline_source", None):
+                item["baseline_source"] = result.baseline_source
 
             tests_ctx.append(item)
 

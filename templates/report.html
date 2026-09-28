@@ -543,7 +543,10 @@
         <div><b>Name:</b> {{ test.name }}</div>
         <div><b>Run:</b> {{ test.run }}</div>
         <div><b>Device:</b> {{ test.device }}</div>
-        <div><b>Figma File:</b> {{ test.figma_file_name }}</div>
+        <div><b>Figma File:</b> {{ test.figma_file_name or 'auto-generated' }}</div>
+        <div><b>Figma File ID:</b> {{ test.figma_file_id or 'n/a' }}</div>
+        <div><b>Figma Node ID:</b> {{ test.figma_node_id or 'n/a' }}</div>
+        <div><b>Baseline Source:</b> {{ test.baseline_source or 'n/a' }}</div>
         <div><b>Page Load Wait:</b> {{ test.page_data_load_wait }}s</div>
         <div><b>Status:</b> {{ test.status }}</div>
       </div>

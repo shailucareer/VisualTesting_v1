@@ -1,0 +1,4 @@
+name,run,device,figma_file_name,url,page_data_load_wait,figma_file_id,figma_node_id
+desktop_qcflow,Y,Desktop,1440_figma.png,https://opinionroutstg.wpengine.com/qcflow,,,
+desktop_qcflow_invalid,N,Desktop,1440_figma_invalid.png,https://opinionroutstg.wpengine.com/qcflow,,,
+mobile_qcflow,Y,Mobile,asdasds.png,https://opinionroutstg.wpengine.com/qcflow,,,

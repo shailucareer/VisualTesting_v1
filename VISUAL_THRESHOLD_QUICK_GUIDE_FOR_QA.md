@@ -99,23 +99,14 @@ Case B: "Result failed, but change is acceptable"
 
 Case C: "Page looked incomplete in screenshot"
 
-1. The capture step now auto-checks for vertical scrollbar right before save and increases viewport height to remove it (best effort).
-2. Check logs for lines such as:
-  - `Pre-capture vertical scroll check ...`
-  - `Vertical scrollbar detected; increasing viewport height ...`
-3. Increase page_data_load_wait for that test in testcases.yaml.
-4. If navigation itself times out, increase --page-load-timeout.
+1. Increase page_data_load_wait for that test in testcases.csv.
+2. If navigation itself times out, increase --page-load-timeout.
 
-Example test case setting in testcases.yaml:
+Example test case setting in testcases.csv:
 
-```yaml
-test_cases:
-  - name: desktop_home
-    run: true
-    device: Desktop
-    url: https://example.com
-    figma_file_name: desktop_home.png
-    page_data_load_wait: 8
+```csv
+name,run,device,figma_file_name,url,page_data_load_wait,figma_file_id,figma_node_id
+desktop_home,Y,Desktop,desktop_home.png,https://example.com,8,,
 ```
 
 Case D: "Headless browser is unstable"

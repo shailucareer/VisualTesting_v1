@@ -4,14 +4,13 @@ Logs all test lifecycle events, downloads, captures, and comparisons.
 """
 
 import os
-import re
+import csv
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-import yaml
 from PIL import Image
 
 from .logging_config import get_logger, setup_logging
@@ -85,6 +84,7 @@ class TestRunner:
         self,
         project: str,
         baseline_mode: str = "auto",
+        figma_access_token: Optional[str] = None,
         threshold: float = 0.90,
         max_diff_pct: Optional[float] = 0.005,
         diff_sensitivity: int = 30,
@@ -103,6 +103,11 @@ class TestRunner:
         self.project = project
         self.requested_baseline_mode = baseline_mode
         self.baseline_mode = baseline_mode
+        self.figma_access_token = (
+            str(figma_access_token).strip() or None
+            if figma_access_token is not None
+            else None
+        )
         self.threshold = threshold
         self.max_diff_pct = max_diff_pct
         self.diff_sensitivity = diff_sensitivity
@@ -122,9 +127,6 @@ class TestRunner:
         self.allow_legacy_screenshot_lookup = len(self.browsers) == 1
         self.report_name = report_name
         self.page_load_timeout = page_load_timeout
-        self.run_mode = "selected"
-        self.target_test_name: Optional[str] = None
-        self.config_baseline_mode = "auto"
 
         self.project_path   = Path("projects") / project
         self.figma_dir      = self.project_path / "figma_images"
@@ -166,8 +168,7 @@ class TestRunner:
                 logger.info(f"Running test set on browser: {browser}")
 
             for tc in test_cases:
-                # In selected mode, keep disabled tests visible as skipped in report.
-                if self.run_mode == "selected" and not tc.run:
+                if not tc.run:
                     self._log(f"  [SKIP] {tc.name}  (run=false)")
                     logger.info(f"Test skipped: {tc.name} (run=false), browser={browser}")
                     results.append(TestResult(test_case=tc, status="skipped", browser=browser))
@@ -204,18 +205,13 @@ class TestRunner:
 
     def _build_runtime_parameters(self) -> dict:
         """Build runtime parameters shown in report and history headers."""
-        mode_label = self.target_test_name if self.run_mode == "test_name" else self.run_mode
         baseline_display = self.baseline_mode
         if self.requested_baseline_mode == "auto":
-            baseline_display = (
-                f"{self.baseline_mode} "
-                f"(auto resolved from config: {self.config_baseline_mode})"
-            )
+            baseline_display = f"{self.baseline_mode} (auto resolved at runtime)"
 
         params = OrderedDict()
         params["baseline_mode"] = baseline_display
         params["project"] = self.project
-        params["run_mode"] = mode_label
         params["threshold"] = self.threshold
         params["max_diff_pct"] = self.max_diff_pct
         params["diff_sensitivity"] = self.diff_sensitivity
@@ -248,100 +244,72 @@ class TestRunner:
 
     def _load_test_cases(self) -> List[TestCase]:
         logger = get_logger("core.runner")
-        path = self.project_path / "testcases.yaml"
+        path = self.project_path / "testcases.csv"
         logger.debug(f"Loading test cases from: {path}")
-        with open(path, "r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
-
-        global_figma_access_token = str(data.get("figma_access_token", "")).strip() or None
-
-        raw_baseline_mode = str(data.get("baseline_mode", "auto")).strip().lower()
-        if raw_baseline_mode not in {"auto", "figma", "screenshot"}:
-            logger.warning(
-                f"Invalid baseline_mode='{raw_baseline_mode}' in testcases.yaml; defaulting to 'auto'"
-            )
-            self.config_baseline_mode = "auto"
-        else:
-            self.config_baseline_mode = raw_baseline_mode
-
-        raw_run_mode = str(data.get("run_mode", "selected")).strip()
-        mode_lc = raw_run_mode.lower()
-        if mode_lc == "all":
-            self.run_mode = "all"
-            self.target_test_name = None
-        elif mode_lc == "selected" or not raw_run_mode:
-            self.run_mode = "selected"
-            self.target_test_name = None
-        else:
-            # Any non-reserved run_mode value is treated as a test name.
-            self.run_mode = "test_name"
-            self.target_test_name = raw_run_mode
-
-        cases = []
-        for raw in data.get("test_cases", []):
-            raw_token = str(raw.get("figma_access_token", "")).strip() or None
-            
-            # Handle None values from YAML (e.g., `figma_file_id:` with no value)
-            figma_file_id_raw = raw.get("figma_file_id")
-            figma_file_id = None if figma_file_id_raw is None else str(figma_file_id_raw).strip() or None
-            
-            figma_node_id_raw = raw.get("figma_node_id")
-            figma_node_id = "" if figma_node_id_raw is None else str(figma_node_id_raw).strip()
-
-            raw_page_data_load_wait = raw.get("page_data_load_wait", self.DEFAULT_PAGE_DATA_LOAD_WAIT)
-            page_data_load_wait = self._parse_wait_seconds(
-                raw_page_data_load_wait,
-                default=self.DEFAULT_PAGE_DATA_LOAD_WAIT,
-                field_name="page_data_load_wait",
-                test_case_name=raw.get("name", "<unnamed>"),
-            )
-            
-            cases.append(
-                TestCase(
-                    name=raw["name"],
-                    run=raw.get("run", True),
-                    device=raw.get("device", "Desktop"),
-                    figma_file_name=raw.get(
-                        "figma_file_name", f"{raw['name']}_figma.png"
-                    ),
-                    url=raw["url"],
-                    figma_access_token=raw_token or global_figma_access_token,
-                    figma_file_id=figma_file_id,
-                    figma_node_id=figma_node_id,
-                    page_data_load_wait=page_data_load_wait,
-                )
-            )
-
-        if self.run_mode == "test_name":
-            filtered = [c for c in cases if c.name == self.target_test_name]
-            if not filtered:
-                available = ", ".join(c.name for c in cases) or "none"
+        with open(path, "r", encoding="utf-8-sig", newline="") as fh:
+            reader = csv.DictReader(fh)
+            fieldnames = reader.fieldnames or []
+            required_columns = ["name", "run", "device", "figma_file_name", "url"]
+            missing_columns = [column for column in required_columns if column not in fieldnames]
+            if missing_columns:
                 raise ValueError(
-                    f"run_mode specifies test '{self.target_test_name}', but it was not found. "
-                    f"Available tests: {available}"
+                    f"testcases.csv is missing required column(s): {', '.join(missing_columns)}"
                 )
-            logger.info(f"run_mode='{self.target_test_name}' -> executing exactly one test")
-            return filtered
 
-        logger.info(f"run_mode='{self.run_mode}'")
+            cases = []
+            for row_number, raw in enumerate(reader, start=2):
+                if not any((value or "").strip() for value in raw.values()):
+                    continue
+
+                name = (raw.get("name") or "").strip()
+                url = (raw.get("url") or "").strip()
+                if not name:
+                    raise ValueError(f"testcases.csv row {row_number} is missing 'name'")
+                if not url:
+                    raise ValueError(
+                        f"testcases.csv row {row_number} for test '{name}' is missing 'url'"
+                    )
+
+                figma_file_name = (raw.get("figma_file_name") or "").strip() or f"{name}_figma.png"
+                figma_file_id = (raw.get("figma_file_id") or "").strip() or None
+                figma_node_id = (raw.get("figma_node_id") or "").strip()
+                raw_page_data_load_wait = raw.get(
+                    "page_data_load_wait", self.DEFAULT_PAGE_DATA_LOAD_WAIT
+                )
+                page_data_load_wait = self._parse_wait_seconds(
+                    raw_page_data_load_wait,
+                    default=self.DEFAULT_PAGE_DATA_LOAD_WAIT,
+                    field_name="page_data_load_wait",
+                    test_case_name=name,
+                )
+
+                cases.append(
+                    TestCase(
+                        name=name,
+                        run=self._parse_run_flag(
+                            raw.get("run"), row_number=row_number, test_case_name=name
+                        ),
+                        device=(raw.get("device") or "Desktop").strip() or "Desktop",
+                        figma_file_name=figma_file_name,
+                        url=url,
+                        figma_access_token=self.figma_access_token,
+                        figma_file_id=figma_file_id,
+                        figma_node_id=figma_node_id,
+                        page_data_load_wait=page_data_load_wait,
+                    )
+                )
+
+        if not cases:
+            logger.warning(f"No test cases found in {path}")
         return cases
 
     def _resolve_baseline_mode(self, test_cases: List[TestCase]) -> None:
         logger = get_logger("core.runner")
         if self.requested_baseline_mode != "auto":
             self.baseline_mode = self.requested_baseline_mode
-            self._persist_baseline_mode_in_yaml(self.baseline_mode)
             return
 
-        if self.config_baseline_mode in {"figma", "screenshot"}:
-            self.baseline_mode = self.config_baseline_mode
-            logger.info(f"baseline_mode from testcases.yaml: '{self.baseline_mode}'")
-            return
-
-        runnable_cases = test_cases
-        if self.run_mode == "selected":
-            runnable_cases = [tc for tc in test_cases if tc.run]
-
+        runnable_cases = [tc for tc in test_cases if tc.run] or test_cases
         has_previous_screenshots = any(
             any(self._latest_screenshot(tc.name, browser=b) is not None for b in self.browsers)
             for tc in runnable_cases
@@ -352,66 +320,6 @@ class TestRunner:
         else:
             self.baseline_mode = "screenshot"
             logger.info("auto baseline mode: prior screenshots found, using screenshot")
-        self._persist_baseline_mode_in_yaml(self.baseline_mode)
-
-    def _persist_baseline_mode_in_yaml(self, baseline_mode: str) -> None:
-        """Persist baseline_mode in testcases.yaml while preserving existing comments."""
-        logger = get_logger("core.runner")
-        path = self.project_path / "testcases.yaml"
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError as exc:
-            logger.warning(f"Could not read {path} to persist baseline_mode: {exc}")
-            return
-
-        lines = text.splitlines()
-        baseline_pattern = re.compile(r"^(\s*)baseline_mode\s*:\s*.*$")
-        run_mode_pattern = re.compile(r"^\s*run_mode\s*:\s*.*$")
-
-        updated = False
-        for idx, line in enumerate(lines):
-            if baseline_pattern.match(line) and not line.lstrip().startswith("#"):
-                lines[idx] = f"baseline_mode: '{baseline_mode}'"
-                updated = True
-                break
-
-        if not updated:
-            insert_idx = None
-            for idx, line in enumerate(lines):
-                if run_mode_pattern.match(line) and not line.lstrip().startswith("#"):
-                    insert_idx = idx + 1
-                    break
-
-            new_line = f"baseline_mode: '{baseline_mode}'"
-            if insert_idx is None:
-                lines.insert(0, new_line)
-            else:
-                lines.insert(insert_idx, new_line)
-
-        new_text = "\n".join(lines) + "\n"
-        if new_text == text:
-            return
-
-        try:
-            path.write_text(new_text, encoding="utf-8")
-            logger.info(f"Persisted baseline_mode='{baseline_mode}' in {path.name}")
-        except OSError as exc:
-            logger.warning(f"Could not write {path} to persist baseline_mode: {exc}")
-
-    @staticmethod
-    def _prompt_baseline_choice() -> str:
-        print("\nPrior screenshots were found for this project.")
-        print("Choose baseline source for this run:")
-        print("  1) Figma (user-provided image)")
-        print("  2) Last execution screenshot")
-
-        while True:
-            choice = input("Enter choice [1/2 or figma/screenshot]: ").strip().lower()
-            if choice in {"1", "figma", "f"}:
-                return "figma"
-            if choice in {"2", "screenshot", "s"}:
-                return "screenshot"
-            print("Invalid choice. Please enter 1/2, figma, or screenshot.")
 
     def _run_single(self, tc: TestCase) -> TestResult:
         device_cfg = self.DEVICE_CONFIGS.get(
@@ -421,79 +329,85 @@ class TestRunner:
         baseline_path: Optional[str] = None
 
         try:
-            figma_file_name = (tc.figma_file_name or "").strip() or f"{tc.name}_figma.png"
-            figma_path = self.figma_dir / figma_file_name
-            baseline_source = "local Figma image"
+            # ── Fetch Figma data / exports (optional) ──────────────────
+            figma_path = self.figma_dir / tc.figma_file_name
+            fetched_figma_path: Optional[Path] = None
 
             # Skip API call if figma_file_id is blank (None or empty string)
             has_file_id = tc.figma_file_id and str(tc.figma_file_id).strip()
-            has_token = tc.figma_access_token and str(tc.figma_access_token).strip()
             has_node_id = tc.figma_node_id and str(tc.figma_node_id).strip()
+            has_token = tc.figma_access_token and str(tc.figma_access_token).strip()
 
-            if has_file_id and has_token and has_node_id:
-                self._log("    -> Downloading Figma node PNG for comparison...")
-                try:
+            if self.fetch_figma:
+                if not has_file_id:
+                    self._log(
+                        "    -> Skipping Figma fetch: figma_file_id is blank; "
+                        "using local Figma image if available."
+                    )
+                elif not has_token:
+                    return TestResult(
+                        test_case=tc,
+                        status="error",
+                        error_message=(
+                            "--fetch-figma was requested but figma_access_token is missing."
+                        ),
+                    )
+                else:
+                    self._log("    -> Fetching Figma JSON data...")
                     client = FigmaClient(tc.figma_access_token)
-                    client.fetch_file_data(file_id=tc.figma_file_id)
-                    downloaded_path = client.download_node_image(
-                        file_id=tc.figma_file_id,
-                        node_id=tc.figma_node_id,
-                        output_path=figma_path,
-                    )
-                    figma_path = Path(downloaded_path)
-                    baseline_source = "downloaded Figma node"
-                    self._log(f"    -> Figma image downloaded successfully: {figma_path.name}")
-                except Exception as exc:
-                    logger.error(f"Failed to download Figma image: {exc}")
-                    return TestResult(
-                        test_case=tc,
-                        status="error",
-                        error_message=f"Failed to download Figma image: {exc}",
-                    )
-            elif has_file_id and has_token:
-                self._log("    -> Fetching Figma metadata...")
-                try:
-                    FigmaClient(tc.figma_access_token).fetch_file_data(file_id=tc.figma_file_id)
-                    self._log("    -> Figma metadata fetched successfully")
-                except Exception as exc:
-                    logger.error(f"Failed to fetch Figma metadata: {exc}")
-                    return TestResult(
-                        test_case=tc,
-                        status="error",
-                        error_message=f"Failed to fetch Figma metadata: {exc}",
-                    )
-            elif has_file_id and not has_token:
-                self._log(
-                    "    -> Skipping Figma API call: figma_access_token is missing; "
-                    "using provided local Figma image."
-                )
-            else:
-                self._log(
-                    "    -> Skipping Figma API call: figma_file_id is blank; "
-                    "using provided local Figma image."
-                )
+                    try:
+                        client.fetch_file_data(file_id=tc.figma_file_id)
+                        self._log("    -> Figma JSON data fetched successfully")
+                    except Exception as exc:
+                        logger.error(f"Failed to fetch Figma JSON data: {exc}")
+                        return TestResult(
+                            test_case=tc,
+                            status="error",
+                            error_message=f"Failed to fetch Figma JSON data: {exc}",
+                        )
 
-            if not figma_path.exists():
-                return TestResult(
-                    test_case=tc,
-                    status="error",
-                    error_message=(
-                        f"Figma image '{figma_path}' not found. "
-                        "Provide this image file manually in the figma folder."
-                    ),
-                )
+                    if self.baseline_mode == "figma":
+                        if not has_node_id:
+                            return TestResult(
+                                test_case=tc,
+                                status="error",
+                                error_message=(
+                                    "baseline_mode=figma with --fetch-figma requires "
+                                    "figma_node_id in testcases.csv"
+                                ),
+                            )
+                        try:
+                            fetched_name = f"{tc.name}_figma_api.png"
+                            fetched_figma_path = self.figma_dir / fetched_name
+                            client.download_node_image(
+                                file_id=tc.figma_file_id,
+                                node_id=tc.figma_node_id,
+                                output_path=str(fetched_figma_path),
+                            )
+                            self._log(
+                                f"    -> Figma node image downloaded: {fetched_name}"
+                            )
+                        except Exception as exc:
+                            logger.error(f"Failed to download Figma node image: {exc}")
+                            return TestResult(
+                                test_case=tc,
+                                status="error",
+                                error_message=f"Failed to download Figma node image: {exc}",
+                            )
+
+            baseline_image_path = fetched_figma_path if fetched_figma_path else figma_path
 
             # ── Capture screenshot ─────────────────────────────────────
             if self.capture_screenshots:
                 figma_image_width = None
                 figma_image_height = None
                 try:
-                    with Image.open(figma_path) as figma_img:
+                    with Image.open(baseline_image_path) as figma_img:
                         figma_image_width = figma_img.width
                         figma_image_height = figma_img.height
                 except Exception as exc:
                     self._log(
-                        f"    -> Could not read Figma image size ({exc}); "
+                        f"    -> Could not read baseline image size ({exc}); "
                         "continuing with page/default capture size."
                     )
 
@@ -525,8 +439,17 @@ class TestRunner:
 
             # ── Determine baseline / actual paths ──────────────────────
             if self.baseline_mode == "figma":
-                baseline_path = str(figma_path)
-                baseline_source = baseline_source if baseline_source else "Figma image"
+                if not baseline_image_path.exists():
+                    return TestResult(
+                        test_case=tc,
+                        status="error",
+                        error_message=(
+                            f"Figma baseline image '{baseline_image_path}' not found. "
+                            "Either provide local image in figma_images or run with "
+                            "--fetch-figma plus figma_file_id and figma_node_id."
+                        ),
+                    )
+                baseline_path = str(baseline_image_path)
                 if not screenshot_path:
                     screenshot_path = self._latest_screenshot(tc.name, browser=self.browser)
                 if not screenshot_path:
@@ -560,9 +483,8 @@ class TestRunner:
                 )
                 if not baseline_path:
                     # Graceful fallback: use Figma image if available
-                    if figma_path.exists():
-                        baseline_path = str(figma_path)
-                        baseline_source = baseline_source if baseline_source else "Figma image"
+                    if baseline_image_path.exists():
+                        baseline_path = str(baseline_image_path)
                         self._log(
                             "    -> No previous screenshot found - "
                             "using Figma image as baseline."
@@ -587,7 +509,6 @@ class TestRunner:
                 diff_sensitivity=self.diff_sensitivity,
                 tile_threshold=self.tile_threshold,
                 tile_size=self.tile_size,
-                match_figma_height=self.match_figma_height,
             ).compare(
                 baseline_path=baseline_path,
                 actual_path=actual_path,
@@ -624,7 +545,7 @@ class TestRunner:
         test_case_name: str,
     ) -> int:
         """
-        Parse wait seconds from YAML.
+        Parse wait seconds from CSV.
 
         Blank/missing values fall back to *default*. Invalid/non-positive values
         are ignored with a warning and also fall back to *default*.
@@ -652,6 +573,25 @@ class TestRunner:
             return default
 
         return parsed
+
+    def _parse_run_flag(self, value, *, row_number: int, test_case_name: str) -> bool:
+        """Parse the CSV run flag into a boolean."""
+        if value is None:
+            return True
+
+        normalized = str(value).strip().lower()
+        if not normalized:
+            return True
+        if normalized in {"y", "yes", "true", "1"}:
+            return True
+        if normalized in {"n", "no", "false", "0"}:
+            return False
+
+        logger.warning(
+            f"Invalid run='{value}' in testcases.csv row {row_number} for test '{test_case_name}'. "
+            "Defaulting to disabled."
+        )
+        return False
 
     # ------------------------------------------------------------------
     # Screenshot helpers
@@ -708,8 +648,6 @@ class TestRunner:
         print("\n" + "=" * w)
         print(f"  Visual Testing  |  Project: {self.project}")
         print(f"  Baseline: {self.baseline_mode:<10}  Threshold: {self.threshold}  DPR: {self.dpr}")
-        mode_label = self.target_test_name if self.run_mode == "test_name" else self.run_mode
-        print(f"  Run Mode: {mode_label}")
         print("=" * w)
 
     @staticmethod

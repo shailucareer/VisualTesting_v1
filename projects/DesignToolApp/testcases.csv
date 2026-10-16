@@ -1,5 +1,2 @@
 name,run,device,figma_file_name,url,page_data_load_wait
-Desktop_cart,Y,Desktop,Desktop_Cart.png,https://gwl-testing-apps.myshopify.com/cart,30
-Desktop_PDP,Y,Desktop,Desktop_PDP.png,https://gwl-testing-apps.myshopify.com/products/gold-pendent-1,30
-Ipad_AddtoCart,Y,Ipad,ipad_AddToCart.png,https://gwl-testing-apps.myshopify.com/cart,30
-Ipad_PDP,Y,Ipad,ipad_PDP.png,https://gwl-testing-apps.myshopify.com/products/gold-pendent-1,30
+Desktop_Faq,Y,Desktop,ipadView.png,https://gwl-testing-apps.myshopify.com/products/gold-pendent-1,30

@@ -38,7 +38,6 @@ Purpose: fast, low-token orientation for AI agents working in this repo.
 - `baseline_mode=auto` is non-interactive:
   - no previous screenshot -> uses `figma`
   - previous screenshot exists -> uses `screenshot`
-- CSV configuration is read-only; resolved baseline mode is kept in memory.
 - `--fetch-figma` fetches Figma file JSON metadata only, not baseline PNG downloads.
 
 ## 6) Token-Efficient Working Rules

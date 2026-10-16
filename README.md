@@ -18,7 +18,6 @@ Python-based visual regression framework for comparing live screenshots against 
 - Baseline mode `auto` is non-interactive.
   - No previous screenshot found: uses `figma`
   - Previous screenshot found: uses `screenshot`
-  - Resolved mode is kept in memory and is not written back to the CSV
 - `--fetch-figma` fetches Figma file JSON metadata only.
   - It does not download baseline PNGs.
   - Baseline image files must exist in `projects/<project>/figma_images/`.
@@ -41,7 +40,6 @@ VisualTesting_v1/
 \- projects/
    \- <project>/
       |- testcases.csv
-    |- auth.py                  # optional project-specific login hook
       |- figma_images/
       |- screenshots/
       |- diffs/
@@ -69,19 +67,18 @@ pip install -r requirements.txt
 Example `projects/<project>/testcases.csv`:
 
 ```csv
-name,run,device,figma_file_name,url,figma_file_id,figma_node_id,page_data_load_wait,run_mode,baseline_mode,figma_access_token
-desktop_homepage,true,Desktop,1440_figma.png,https://example.com/,abc123def456,,,selected,auto,figd_your_token_here
+name,run,device,figma_file_name,url,page_data_load_wait,figma_file_id,figma_node_id
+desktop_homepage,Y,Desktop,1440_figma.png,https://example.com/,3,abc123def456,
 ```
 
 Common fields:
 
-- `run_mode`: `all`, `selected`, or a specific test name
-- `baseline_mode`: `auto`, `figma`, `screenshot`
-- `figma_access_token`: optional global token (can be overridden per test)
-- `run_mode`, `baseline_mode`: optional configuration columns; values from the first row are used
 - Per test:
   - `name`, `run`, `device`, `figma_file_name`, `url`
+  - `run` accepts `Y/N`, `true/false`, `yes/no`, or `1/0`
+  - `page_data_load_wait` is optional and defaults to `3`
   - `figma_file_id` is optional and used by `--fetch-figma`
+  - `figma_node_id` is optional
 
 ## Optional Authentication
 
@@ -142,11 +139,13 @@ python main.py -p opinion_route
 Baseline behavior:
 
 - `--baseline-mode {auto|figma|screenshot}`
+- `--figma-access-token TOKEN`
 
 ```bash
 python main.py --project opinion_route --baseline-mode auto
 python main.py --project opinion_route --baseline-mode figma
 python main.py --project opinion_route --baseline-mode screenshot
+python main.py --project opinion_route --figma-access-token figd_your_token_here --fetch-figma
 ```
 
 Comparison quality:

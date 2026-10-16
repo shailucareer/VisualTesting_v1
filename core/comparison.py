@@ -19,7 +19,10 @@ Strategy
                          checked against *tile_threshold*.  Catches small but
                          visually important differences (missing text, icons)
                          that are diluted in the global score.
-6. Tile-heatmap diff   – side-by-side Baseline | Actual | Heatmap composite
+6. Match coverage      – percentage of image area in tiles meeting
+                         *tile_threshold*.  This is the report's visual-match
+                         percentage; a fully unmatched image scores 0%.
+7. Tile-heatmap diff   – side-by-side Baseline | Actual | Heatmap composite
                          saved to the output folder.  Each tile is colour-coded
                          green (identical) → red (very different) and failed
                          tiles are outlined with their SSIM score.
@@ -63,6 +66,7 @@ class ComparisonResult:
     tile_threshold: float       # configured minimum tile SSIM
     failed_tiles: int           # number of tiles below tile_threshold
     total_tiles: int
+    match_coverage: float       # fraction of image area in tiles meeting tile_threshold
     # ── Verdict ───────────────────────────────────────────────────
     passed: bool
     # ── Paths ─────────────────────────────────────────────────────
@@ -213,6 +217,8 @@ class ImageComparator:
             f"failed={failed_tiles}/{len(tiles)}  "
             f"(tile_threshold {self.tile_threshold})  → {'PASS' if tile_passed else 'FAIL'}"
         )
+        match_coverage = self._tile_match_coverage(tiles, baseline_img.size)
+        logger.info(f"[MATCH-COVERAGE] {match_coverage * 100:.2f}% of image area matches")
 
         passed = ssim_passed and pixel_passed and tile_passed
         logger.info(f"[VERDICT]      {'PASS ✓' if passed else 'FAIL ✗'}")
@@ -233,6 +239,7 @@ class ImageComparator:
             tile_threshold=self.tile_threshold,
             failed_tiles=failed_tiles,
             total_tiles=len(tiles),
+            match_coverage=match_coverage,
             passed=passed,
             diff_image_path=diff_path,
             baseline_path=baseline_path,
@@ -288,14 +295,11 @@ class ImageComparator:
                     win = min(7, tw, th)
                     if win % 2 == 0:
                         win -= 1
-                    try:
-                        score, _ = compute_ssim(
-                            t1, t2, full=True,
-                            channel_axis=2, data_range=255, win_size=win,
-                        )
-                        score = float(score)
-                    except Exception:
-                        score = 1.0
+                    score, _ = compute_ssim(
+                        t1, t2, full=True,
+                        channel_axis=2, data_range=255, win_size=win,
+                    )
+                    score = float(score)
                     results.append(TileResult(
                         row=row, col=col, x=x, y=y,
                         ssim=score,
@@ -307,6 +311,23 @@ class ImageComparator:
             row += 1
 
         return results
+
+    def _tile_match_coverage(
+        self, tiles: List[TileResult], image_size: Tuple[int, int]
+    ) -> float:
+        """Return the fraction of the image covered by tiles that meet the threshold."""
+        width, height = image_size
+        if width == 0 or height == 0:
+            return 0.0
+
+        matched_area = 0
+        for tile in tiles:
+            if tile.passed:
+                tile_width = min(self.tile_size, width - tile.x)
+                tile_height = min(self.tile_size, height - tile.y)
+                matched_area += tile_width * tile_height
+
+        return matched_area / (width * height)
 
     # ------------------------------------------------------------------
     # Helpers

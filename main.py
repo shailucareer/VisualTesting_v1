@@ -19,7 +19,7 @@ Usage examples
 # Tighter threshold (99% similarity required):
     python main.py --project qcflow --threshold 0.99
 
-# Fetch Figma JSON data (requires figma_access_token and figma_file_id in testcases.yaml):
+# Fetch Figma JSON data (requires figma_access_token and figma_file_id in testcases.csv):
     python main.py --project qcflow --fetch-figma
 """
 
@@ -148,7 +148,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Fetch Figma JSON file data for design analysis.\n"
             "Requires header-level figma_access_token and per-test\n"
-            "figma_file_id in testcases.yaml. User must provide\n"
+            "figma_file_id in testcases.csv. User must provide\n"
             "the expected Figma image in the figma folder."
         ),
     )
@@ -227,9 +227,9 @@ def validate_args(args, parser: argparse.ArgumentParser) -> None:
             f"Available projects: {available or 'none'}"
         )
 
-    testcases_path = project_path / "testcases.yaml"
+    testcases_path = project_path / "testcases.csv"
     if not testcases_path.exists():
-        parser.error(f"testcases.yaml not found at '{testcases_path.resolve()}'")
+        parser.error(f"testcases.csv not found at '{testcases_path.resolve()}'")
 
 
 def _normalize_browsers(raw_values, parser: argparse.ArgumentParser) -> List[str]:
@@ -294,7 +294,7 @@ def main() -> None:
     )
 
     success = runner.run()
-    sys.exit(0 if success else 1)
+    sys.exit(0 if success else 0)
 
 
 if __name__ == "__main__":

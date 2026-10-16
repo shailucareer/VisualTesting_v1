@@ -26,7 +26,7 @@ Primary CLI options:
 
 ### 1.2 Project Configuration Input
 
-Source: `projects/<project>/testcases.yaml`
+Source: `projects/<project>/testcases.csv`
 
 Top-level keys:
 
@@ -56,12 +56,12 @@ Per test case:
 ### Step 1: Startup and Validation
 
 1. CLI arguments are parsed.
-2. Project folder and `testcases.yaml` are validated.
+2. Project folder and `testcases.csv` are validated.
 3. Runner is initialized with runtime options.
 
 ### Step 2: Configuration Loading
 
-1. `testcases.yaml` is read.
+1. `testcases.csv` is read.
 2. `run_mode` is resolved into an executable test list.
 3. `baseline_mode` is resolved (CLI override or YAML-driven behavior).
 4. Global `figma_access_token` is applied to test cases by default.
@@ -71,7 +71,7 @@ Per test case:
 1. If baseline mode is `auto`:
    - If no previous screenshot exists for runnable tests: use `figma`.
   - If previous screenshot exists: use `screenshot`.
-2. Resolved baseline mode is persisted back into `testcases.yaml`.
+2. Resolved baseline mode is kept in memory for the current run.
 
 ### Step 4: Per-Test Execution
 
@@ -83,7 +83,7 @@ For each selected test:
   - Baseline PNG is expected as a local file in `figma_images/`.
 3. Capture live screenshot if `--capture-screenshots` is enabled.
   - Browser scrolls through page to trigger lazy-loaded content.
-  - Capture viewport is expanded to target dimensions.
+  - Capture viewport uses the local Figma baseline width and height when available; otherwise, it uses the device dimensions and rendered page height.
   - Just before saving, the framework checks if a vertical scrollbar is still present and increases viewport height until no scroll remains (best effort with retry cap).
   - Final screenshot is saved after returning to top of page.
 4. Resolve comparison pair:
@@ -128,7 +128,9 @@ If values are blank, API call is skipped and local baseline image is used.
 
 - Screenshots are normalized using DPR.
 - Baseline and actual images are resized/aligned as needed.
-- SSIM score is computed and compared against threshold.
+- Global and per-tile SSIM scores are computed and compared against their thresholds.
+- The report's visual-match percentage is the fraction of evaluated image area
+  covered by tiles meeting the tile SSIM threshold; if no tile matches, it is 0%.
 - Diff artifacts are produced for report visualization.
 
 ## 4. Logging

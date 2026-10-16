@@ -4,7 +4,7 @@ Python-based visual regression framework for comparing live screenshots against 
 
 ## What It Does
 
-- Captures live screenshots with Selenium (Chrome, Firefox, Edge)
+- Captures live screenshots with Selenium (Chrome, Firefox, Edge), using the Figma baseline dimensions when available
 - Before saving screenshots, auto-expands viewport height until no vertical scroll is present (best-effort with retry cap)
 - Compares images using three checks:
   - Global SSIM
@@ -18,7 +18,7 @@ Python-based visual regression framework for comparing live screenshots against 
 - Baseline mode `auto` is non-interactive.
   - No previous screenshot found: uses `figma`
   - Previous screenshot found: uses `screenshot`
-  - Resolved mode is written back to `testcases.yaml`
+  - Resolved mode is kept in memory and is not written back to the CSV
 - `--fetch-figma` fetches Figma file JSON metadata only.
   - It does not download baseline PNGs.
   - Baseline image files must exist in `projects/<project>/figma_images/`.
@@ -40,7 +40,8 @@ VisualTesting_v1/
 |  \- report.html
 \- projects/
    \- <project>/
-      |- testcases.yaml
+      |- testcases.csv
+    |- auth.py                  # optional project-specific login hook
       |- figma_images/
       |- screenshots/
       |- diffs/
@@ -65,20 +66,11 @@ pip install -r requirements.txt
 
 ## Testcase Configuration
 
-Example `projects/<project>/testcases.yaml`:
+Example `projects/<project>/testcases.csv`:
 
-```yaml
-run_mode: selected
-baseline_mode: auto
-figma_access_token: figd_your_token_here
-
-test_cases:
-  - name: desktop_homepage
-    run: true
-    device: Desktop
-    figma_file_name: 1440_figma.png
-    url: https://example.com/
-    figma_file_id: abc123def456
+```csv
+name,run,device,figma_file_name,url,figma_file_id,figma_node_id,page_data_load_wait,run_mode,baseline_mode,figma_access_token
+desktop_homepage,true,Desktop,1440_figma.png,https://example.com/,abc123def456,,,selected,auto,figd_your_token_here
 ```
 
 Common fields:
@@ -86,9 +78,42 @@ Common fields:
 - `run_mode`: `all`, `selected`, or a specific test name
 - `baseline_mode`: `auto`, `figma`, `screenshot`
 - `figma_access_token`: optional global token (can be overridden per test)
+- `run_mode`, `baseline_mode`: optional configuration columns; values from the first row are used
 - Per test:
   - `name`, `run`, `device`, `figma_file_name`, `url`
   - `figma_file_id` is optional and used by `--fetch-figma`
+
+## Optional Authentication
+
+For a project that requires login, add `projects/<project>/auth.py` beside its
+`testcases.csv` and define `authenticate(driver)`. The framework launches one
+browser per selected browser, calls this function once before that browser's
+tests, and reuses the authenticated browser for every screenshot in the run.
+Projects without `auth.py` are captured without authentication. In a
+multi-browser run, the hook runs once in each browser session.
+
+The hook owns the login workflow, so it can handle password-only forms,
+email-and-password forms, or any project-specific flow:
+
+```python
+from selenium.webdriver.common.by import By
+
+
+def authenticate(driver):
+    driver.get("https://example.com/login")
+    driver.find_element(By.NAME, "email").send_keys("your-email")
+    driver.find_element(By.NAME, "password").send_keys("your-password")
+    driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+    # Wait for a project-specific post-login element before returning.
+```
+
+Keep real credentials out of source control; read them from environment
+variables or another local secret store. The browser is headless by default;
+use `--no-headless` when the custom login flow requires a visible window.
+
+The `BhoomiVaidyam` project uses the development `devOtp` value returned by its
+`send-otp` response. Its auth hook reads that response from browser performance
+logs, so run it with Chrome or Edge; Firefox does not expose the required log.
 
 ## Quick Start
 
@@ -131,6 +156,9 @@ Comparison quality:
 - `--diff-sensitivity INT`
 - `--tile-threshold FLOAT`
 - `--tile-size INT`
+- The report's visual-match percentage is the fraction of image area in tiles
+  whose SSIM meets `--tile-threshold`. Global SSIM remains available as a
+  separate diagnostic.
 
 ```bash
 python main.py --project opinion_route --threshold 0.92
@@ -219,9 +247,9 @@ Exit code:
 
 ## Troubleshooting
 
-`testcases.yaml not found`
+`testcases.csv not found`
 
-- Ensure `projects/<project>/testcases.yaml` exists.
+- Ensure `projects/<project>/testcases.csv` exists.
 
 `No screenshot available`
 
@@ -229,8 +257,8 @@ Exit code:
 
 `Page looks cut off at bottom`
 
-- The screenshot step now checks for vertical scroll just before save and increases height until the page fits (best effort).
-- If content still appears incomplete, increase per-test `page_data_load_wait` in `testcases.yaml` so lazy content has more time to render.
+- Captures use the baseline image height when available and check for remaining document scroll before saving.
+- If content still appears incomplete, increase per-test `page_data_load_wait` in `testcases.csv` so lazy content has more time to render.
 
 `Figma image not found`
 

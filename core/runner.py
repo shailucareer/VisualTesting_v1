@@ -3,15 +3,16 @@ Orchestrates the end-to-end visual test execution for a sub-project.
 Logs all test lifecycle events, downloads, captures, and comparisons.
 """
 
+import csv
+import importlib.util
 import os
-import re
+import sys
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-import yaml
 from PIL import Image
 
 from .logging_config import get_logger, setup_logging
@@ -165,19 +166,36 @@ class TestRunner:
                 self._log(f"\n  [BROWSER] {browser}")
                 logger.info(f"Running test set on browser: {browser}")
 
-            for tc in test_cases:
-                # In selected mode, keep disabled tests visible as skipped in report.
-                if self.run_mode == "selected" and not tc.run:
-                    self._log(f"  [SKIP] {tc.name}  (run=false)")
-                    logger.info(f"Test skipped: {tc.name} (run=false), browser={browser}")
-                    results.append(TestResult(test_case=tc, status="skipped", browser=browser))
-                    continue
+            driver, session_error = self._start_browser_session(test_cases)
+            try:
+                for tc in test_cases:
+                    # In selected mode, keep disabled tests visible as skipped in report.
+                    if self.run_mode == "selected" and not tc.run:
+                        self._log(f"  [SKIP] {tc.name}  (run=false)")
+                        logger.info(f"Test skipped: {tc.name} (run=false), browser={browser}")
+                        results.append(TestResult(test_case=tc, status="skipped", browser=browser))
+                        continue
 
-                self._log(f"\n  [RUN]  {tc.name}  ({tc.device})  ->  {tc.url}  [browser={browser}]")
-                logger.info(f"Running test: {tc.name} on {tc.device} device, browser={browser}")
-                result = self._run_single(tc)
-                results.append(result)
-                self._log_result(result)
+                    self._log(f"\n  [RUN]  {tc.name}  ({tc.device})  ->  {tc.url}  [browser={browser}]")
+                    logger.info(f"Running test: {tc.name} on {tc.device} device, browser={browser}")
+                    if session_error:
+                        result = TestResult(
+                            test_case=tc,
+                            status="error",
+                            error_message=session_error,
+                            browser=browser,
+                        )
+                    else:
+                        result = self._run_single(tc, driver=driver)
+                    results.append(result)
+                    self._log_result(result)
+            finally:
+                if driver is not None:
+                    logger.debug(f"Closing shared WebDriver for browser={browser}")
+                    try:
+                        driver.quit()
+                    except Exception:
+                        logger.warning(f"Could not close shared WebDriver for browser={browser}")
 
         logger = get_logger("core.runner")
         run_finished_at = datetime.now()
@@ -248,23 +266,42 @@ class TestRunner:
 
     def _load_test_cases(self) -> List[TestCase]:
         logger = get_logger("core.runner")
-        path = self.project_path / "testcases.yaml"
+        path = self.project_path / "testcases.csv"
         logger.debug(f"Loading test cases from: {path}")
-        with open(path, "r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
+        with open(path, "r", encoding="utf-8", newline="") as fh:
+            rows = list(csv.DictReader(fh))
 
-        global_figma_access_token = str(data.get("figma_access_token", "")).strip() or None
+        if not rows:
+            raise ValueError(f"No test cases found in {path}")
 
-        raw_baseline_mode = str(data.get("baseline_mode", "auto")).strip().lower()
+        def value(row, key, default=""):
+            raw_value = row.get(key, default)
+            normalized = "" if raw_value is None else str(raw_value).strip()
+            return normalized or default
+
+        def parse_bool(raw_value, default=True):
+            normalized = str(raw_value).strip().lower()
+            if not normalized:
+                return default
+            if normalized in {"true", "1", "yes", "y", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "n", "off"}:
+                return False
+            raise ValueError(f"Invalid boolean value '{raw_value}' in {path}")
+
+        first_row = rows[0]
+        global_figma_access_token = value(first_row, "figma_access_token") or None
+
+        raw_baseline_mode = value(first_row, "baseline_mode", "auto").lower()
         if raw_baseline_mode not in {"auto", "figma", "screenshot"}:
             logger.warning(
-                f"Invalid baseline_mode='{raw_baseline_mode}' in testcases.yaml; defaulting to 'auto'"
+                f"Invalid baseline_mode='{raw_baseline_mode}' in testcases.csv; defaulting to 'auto'"
             )
             self.config_baseline_mode = "auto"
         else:
             self.config_baseline_mode = raw_baseline_mode
 
-        raw_run_mode = str(data.get("run_mode", "selected")).strip()
+        raw_run_mode = value(first_row, "run_mode", "selected")
         mode_lc = raw_run_mode.lower()
         if mode_lc == "all":
             self.run_mode = "all"
@@ -278,33 +315,32 @@ class TestRunner:
             self.target_test_name = raw_run_mode
 
         cases = []
-        for raw in data.get("test_cases", []):
-            raw_token = str(raw.get("figma_access_token", "")).strip() or None
+        for raw in rows:
+            raw_token = value(raw, "figma_access_token") or None
             
-            # Handle None values from YAML (e.g., `figma_file_id:` with no value)
-            figma_file_id_raw = raw.get("figma_file_id")
-            figma_file_id = None if figma_file_id_raw is None else str(figma_file_id_raw).strip() or None
+            figma_file_id = value(raw, "figma_file_id") or None
             
-            figma_node_id_raw = raw.get("figma_node_id")
-            figma_node_id = "" if figma_node_id_raw is None else str(figma_node_id_raw).strip()
+            figma_node_id = value(raw, "figma_node_id")
 
-            raw_page_data_load_wait = raw.get("page_data_load_wait", self.DEFAULT_PAGE_DATA_LOAD_WAIT)
+            raw_page_data_load_wait = value(
+                raw, "page_data_load_wait", self.DEFAULT_PAGE_DATA_LOAD_WAIT
+            )
             page_data_load_wait = self._parse_wait_seconds(
                 raw_page_data_load_wait,
                 default=self.DEFAULT_PAGE_DATA_LOAD_WAIT,
                 field_name="page_data_load_wait",
-                test_case_name=raw.get("name", "<unnamed>"),
+                test_case_name=value(raw, "name", "<unnamed>"),
             )
             
             cases.append(
                 TestCase(
-                    name=raw["name"],
-                    run=raw.get("run", True),
-                    device=raw.get("device", "Desktop"),
-                    figma_file_name=raw.get(
-                        "figma_file_name", f"{raw['name']}_figma.png"
+                    name=value(raw, "name"),
+                    run=parse_bool(value(raw, "run"), default=True),
+                    device=value(raw, "device", "Desktop"),
+                    figma_file_name=value(
+                        raw, "figma_file_name", f"{value(raw, 'name')}_figma.png"
                     ),
-                    url=raw["url"],
+                    url=value(raw, "url"),
                     figma_access_token=raw_token or global_figma_access_token,
                     figma_file_id=figma_file_id,
                     figma_node_id=figma_node_id,
@@ -330,12 +366,11 @@ class TestRunner:
         logger = get_logger("core.runner")
         if self.requested_baseline_mode != "auto":
             self.baseline_mode = self.requested_baseline_mode
-            self._persist_baseline_mode_in_yaml(self.baseline_mode)
             return
 
         if self.config_baseline_mode in {"figma", "screenshot"}:
             self.baseline_mode = self.config_baseline_mode
-            logger.info(f"baseline_mode from testcases.yaml: '{self.baseline_mode}'")
+            logger.info(f"baseline_mode from testcases.csv: '{self.baseline_mode}'")
             return
 
         runnable_cases = test_cases
@@ -352,51 +387,6 @@ class TestRunner:
         else:
             self.baseline_mode = "screenshot"
             logger.info("auto baseline mode: prior screenshots found, using screenshot")
-        self._persist_baseline_mode_in_yaml(self.baseline_mode)
-
-    def _persist_baseline_mode_in_yaml(self, baseline_mode: str) -> None:
-        """Persist baseline_mode in testcases.yaml while preserving existing comments."""
-        logger = get_logger("core.runner")
-        path = self.project_path / "testcases.yaml"
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError as exc:
-            logger.warning(f"Could not read {path} to persist baseline_mode: {exc}")
-            return
-
-        lines = text.splitlines()
-        baseline_pattern = re.compile(r"^(\s*)baseline_mode\s*:\s*.*$")
-        run_mode_pattern = re.compile(r"^\s*run_mode\s*:\s*.*$")
-
-        updated = False
-        for idx, line in enumerate(lines):
-            if baseline_pattern.match(line) and not line.lstrip().startswith("#"):
-                lines[idx] = f"baseline_mode: '{baseline_mode}'"
-                updated = True
-                break
-
-        if not updated:
-            insert_idx = None
-            for idx, line in enumerate(lines):
-                if run_mode_pattern.match(line) and not line.lstrip().startswith("#"):
-                    insert_idx = idx + 1
-                    break
-
-            new_line = f"baseline_mode: '{baseline_mode}'"
-            if insert_idx is None:
-                lines.insert(0, new_line)
-            else:
-                lines.insert(insert_idx, new_line)
-
-        new_text = "\n".join(lines) + "\n"
-        if new_text == text:
-            return
-
-        try:
-            path.write_text(new_text, encoding="utf-8")
-            logger.info(f"Persisted baseline_mode='{baseline_mode}' in {path.name}")
-        except OSError as exc:
-            logger.warning(f"Could not write {path} to persist baseline_mode: {exc}")
 
     @staticmethod
     def _prompt_baseline_choice() -> str:
@@ -413,7 +403,61 @@ class TestRunner:
                 return "screenshot"
             print("Invalid choice. Please enter 1/2, figma, or screenshot.")
 
-    def _run_single(self, tc: TestCase) -> TestResult:
+    def _start_browser_session(self, test_cases: List[TestCase]):
+        """Start one browser session and optionally run this project's login hook."""
+        if not self.capture_screenshots:
+            return None, None
+
+        runnable_cases = test_cases
+        if self.run_mode == "selected":
+            runnable_cases = [tc for tc in test_cases if tc.run]
+        if not runnable_cases:
+            return None, None
+
+        first_device = self.DEVICE_CONFIGS.get(
+            runnable_cases[0].device, self.DEVICE_CONFIGS["Desktop"]
+        )
+        capture = ScreenshotCapture(
+            browser=self.browser,
+            headless=self.headless,
+            dpr=self.dpr,
+            page_load_timeout=self.page_load_timeout,
+            page_data_load_wait=runnable_cases[0].page_data_load_wait,
+        )
+        driver = None
+        try:
+            driver = capture.create_driver(first_device["width"], first_device["height"])
+            auth_path = self.project_path / "auth.py"
+            if auth_path.is_file():
+                module_name = f"_visual_testing_auth_{self.project_path.name}"
+                spec = importlib.util.spec_from_file_location(module_name, auth_path)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Could not load project authentication module: {auth_path}")
+                auth_module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = auth_module
+                try:
+                    spec.loader.exec_module(auth_module)
+                except Exception:
+                    sys.modules.pop(module_name, None)
+                    raise
+                authenticate = getattr(auth_module, "authenticate", None)
+                if not callable(authenticate):
+                    raise AttributeError(
+                        f"{auth_path} must define a callable authenticate(driver) function"
+                    )
+                logger.info(f"Running project authentication hook: {auth_path}")
+                authenticate(driver)
+            return driver, None
+        except Exception as exc:
+            logger.exception(f"Could not start authenticated browser session: {exc}")
+            if driver is not None:
+                try:
+                    driver.quit()
+                except Exception:
+                    logger.warning("Could not close browser after session startup failure")
+            return None, f"Could not start browser session or authenticate: {exc}"
+
+    def _run_single(self, tc: TestCase, driver=None) -> TestResult:
         device_cfg = self.DEVICE_CONFIGS.get(
             tc.device, self.DEVICE_CONFIGS["Desktop"]
         )
@@ -520,6 +564,7 @@ class TestRunner:
                     figma_image_width=figma_image_width,
                     figma_image_height=figma_image_height,
                     match_figma_height=self.match_figma_height,
+                    driver=driver,
                 )
                 self._log(f"    -> Screenshot saved: {Path(screenshot_path).name}")
 
@@ -624,7 +669,7 @@ class TestRunner:
         test_case_name: str,
     ) -> int:
         """
-        Parse wait seconds from YAML.
+        Parse wait seconds from CSV.
 
         Blank/missing values fall back to *default*. Invalid/non-positive values
         are ignored with a warning and also fall back to *default*.

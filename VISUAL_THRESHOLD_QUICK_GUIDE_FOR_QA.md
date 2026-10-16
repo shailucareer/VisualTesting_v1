@@ -42,6 +42,12 @@ Worst-tile SSIM (tile-threshold + tile-size):
 - Good for localized regressions (missing icon, wrong label, broken button).
 - Smaller tile-size means stricter local detection.
 
+Report visual-match percentage:
+
+- Measures the fraction of image area covered by tiles whose SSIM meets `tile-threshold`.
+- A fully mismatched page has 0% match coverage; partial matches are shown as the matched-area percentage.
+- Global SSIM is still shown separately as a structural-similarity diagnostic.
+
 ## 3) Simple Example (Why 1 High SSIM Can Still FAIL)
 
 ```text
@@ -103,19 +109,14 @@ Case C: "Page looked incomplete in screenshot"
 2. Check logs for lines such as:
   - `Pre-capture vertical scroll check ...`
   - `Vertical scrollbar detected; increasing viewport height ...`
-3. Increase page_data_load_wait for that test in testcases.yaml.
+3. Increase page_data_load_wait for that test in testcases.csv.
 4. If navigation itself times out, increase --page-load-timeout.
 
-Example test case setting in testcases.yaml:
+Example test case setting in testcases.csv:
 
-```yaml
-test_cases:
-  - name: desktop_home
-    run: true
-    device: Desktop
-    url: https://example.com
-    figma_file_name: desktop_home.png
-    page_data_load_wait: 8
+```csv
+name,run,device,url,figma_file_name,page_data_load_wait
+desktop_home,true,Desktop,https://example.com,desktop_home.png,8
 ```
 
 Case D: "Headless browser is unstable"

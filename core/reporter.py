@@ -64,7 +64,8 @@ class ReportGenerator:
                 "page_data_load_wait": result.test_case.page_data_load_wait,
                 "status":        result.status,
                 "error_message": result.error_message,
-                "similarity_pct":    None,
+                "match_coverage_pct": None,
+                "global_ssim_pct":    None,
                 "threshold_pct":     None,
                 "diff_pixels_pct":   None,
                 "max_diff_pct":      None,
@@ -86,7 +87,8 @@ class ReportGenerator:
 
             if result.comparison:
                 cmp = result.comparison
-                item["similarity_pct"]  = round(cmp.similarity * 100, 2)
+                item["match_coverage_pct"] = round(cmp.match_coverage * 100, 2)
+                item["global_ssim_pct"] = round(cmp.similarity * 100, 2)
                 item["threshold_pct"]   = round(cmp.threshold  * 100, 2)
                 item["diff_pixels_pct"] = round(cmp.diff_pixels_pct * 100, 3)
                 item["max_diff_pct"]    = (

@@ -61,6 +61,7 @@ class ScreenshotCapture:
         figma_image_width: Optional[int] = None,
         figma_image_height: Optional[int] = None,
         match_figma_height: bool = False,
+        driver=None,
     ) -> str:
         """
         Navigate to *url*, wait for the page to settle, then save a
@@ -71,7 +72,9 @@ class ScreenshotCapture:
         Logs browser type, resolution, DPR, and save location.
         """
         logger.info(f"Starting screenshot capture: browser={self.browser}, resolution={width}x{height}, dpr={self.dpr}")
-        driver = self._create_driver(width, height)
+        owns_driver = driver is None
+        if owns_driver:
+            driver = self.create_driver(width, height)
         try:
             driver.set_page_load_timeout(self.page_load_timeout)
             logger.debug(f"Set page load timeout to {self.page_load_timeout} seconds")
@@ -108,8 +111,7 @@ class ScreenshotCapture:
             # Wait for any final lazy content triggered by the last scroll
             time.sleep(1.0)
 
-            # Expand window to the maximum rendered height for full-page capture.
-            # Includes document metrics and current live viewport/app height.
+            # Measure rendered height for captures without a baseline dimension.
             post_scroll_height = driver.execute_script(
                 "const body = document.body || {};"
                 "const docEl = document.documentElement || {};"
@@ -127,15 +129,19 @@ class ScreenshotCapture:
                 "  viewportHeight"
                 ");"
             )
-            # Final capture size aligns to Figma width (when provided) and uses
-            # the actual rendered page height. The comparison step will scale
-            # the actual screenshot to match Figma height when the user requests it.
+            # Match both baseline dimensions when available; otherwise use the
+            # rendered page height and at least the configured device height.
             default_width = int(width)
             figma_width = int(figma_image_width or 0)
             target_width = figma_width if figma_width > 0 else default_width
             default_height = int(height)
+            figma_height = int(figma_image_height or 0)
             live_height = int(post_scroll_height)
-            final_height = max(default_height, live_height)
+            final_height = (
+                figma_height
+                if figma_height > 0
+                else max(default_height, live_height)
+            )
             logger.info(
                 "Width selection for capture: "
                 f"default_width={default_width}, "
@@ -145,6 +151,7 @@ class ScreenshotCapture:
             logger.info(
                 "Height selection for capture: "
                 f"default_height={default_height}, "
+                f"figma_image_height={figma_height}, "
                 f"post_scroll_height={live_height}, "
                 f"final_height={final_height}, "
                 f"match_figma_height={match_figma_height}"
@@ -161,8 +168,8 @@ class ScreenshotCapture:
             driver.execute_script("window.scrollTo(0, 0);")
             time.sleep(0.3)
 
-            # Ensure no vertical scrollbar remains before saving the screenshot.
-            # This avoids cutting off bottom content in pages with late height growth.
+            # Ensure no document content is clipped after resizing, including
+            # content that grew after the initial page-height measurement.
             final_height = self._expand_height_until_no_vertical_scroll(
                 driver=driver,
                 target_width=target_width,
@@ -181,10 +188,15 @@ class ScreenshotCapture:
             driver.save_screenshot(output_path)
             logger.info(f"Screenshot saved: {output_path}")
         finally:
-            logger.debug("Closing WebDriver")
-            driver.quit()
+            if owns_driver:
+                logger.debug("Closing WebDriver")
+                driver.quit()
 
         return output_path
+
+    def create_driver(self, width: int, height: int):
+        """Create a WebDriver that can be shared across multiple captures."""
+        return self._create_driver(width, height)
 
     # ------------------------------------------------------------------
     # Driver factories
@@ -334,6 +346,7 @@ class ScreenshotCapture:
         opts.add_argument("--hide-scrollbars")
         opts.add_argument("--disable-infobars")
         opts.add_argument("--disable-extensions")
+        opts.set_capability("goog:loggingPrefs", {"performance": "ALL"})
         if self.dpr != 1.0:
             opts.add_argument(f"--force-device-scale-factor={self.dpr}")
 
@@ -358,6 +371,7 @@ class ScreenshotCapture:
             opts.add_argument("--headless=new")
         opts.add_argument("--no-sandbox")
         opts.add_argument(f"--window-size={width},{height}")
+        opts.set_capability("goog:loggingPrefs", {"performance": "ALL"})
         if self.dpr != 1.0:
             opts.add_argument(f"--force-device-scale-factor={self.dpr}")
 

@@ -51,7 +51,7 @@ Purpose: fast, low-token orientation for AI agents working in this repo.
 - Avoid reading old report folders; they are large and low-signal.
 
 ## 7) Safe Defaults for Agent Changes
-- Preserve CLI flags and existing YAML keys.
+- Preserve CLI flags and existing CSV column names.
 - Keep behavior backward-compatible unless user asks for a breaking change.
 - Validate by running one focused command on the target project.
 - Prefer minimal diffs in `core/` and avoid touching generated report artifacts.

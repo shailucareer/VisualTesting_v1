@@ -77,7 +77,7 @@ For each selected test:
   - Baseline PNG is expected as a local file in `figma_images/`.
 3. Capture live screenshot if `--capture-screenshots` is enabled.
   - Browser scrolls through page to trigger lazy-loaded content.
-  - Capture viewport is expanded to target dimensions.
+  - Capture viewport uses the local Figma baseline width and height when available; otherwise, it uses the device dimensions and rendered page height.
   - Just before saving, the framework checks if a vertical scrollbar is still present and increases viewport height until no scroll remains (best effort with retry cap).
   - Final screenshot is saved after returning to top of page.
 4. Resolve comparison pair:
@@ -121,7 +121,9 @@ If values are blank, API call is skipped and local baseline image is used.
 
 - Screenshots are normalized using DPR.
 - Baseline and actual images are resized/aligned as needed.
-- SSIM score is computed and compared against threshold.
+- Global and per-tile SSIM scores are computed and compared against their thresholds.
+- The report's visual-match percentage is the fraction of evaluated image area
+  covered by tiles meeting the tile SSIM threshold; if no tile matches, it is 0%.
 - Diff artifacts are produced for report visualization.
 
 ## 4. Logging

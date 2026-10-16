@@ -4,7 +4,7 @@ Python-based visual regression framework for comparing live screenshots against 
 
 ## What It Does
 
-- Captures live screenshots with Selenium (Chrome, Firefox, Edge)
+- Captures live screenshots with Selenium (Chrome, Firefox, Edge), using the Figma baseline dimensions when available
 - Before saving screenshots, auto-expands viewport height until no vertical scroll is present (best-effort with retry cap)
 - Compares images using three checks:
   - Global SSIM
@@ -80,6 +80,38 @@ Common fields:
   - `figma_file_id` is optional and used by `--fetch-figma`
   - `figma_node_id` is optional
 
+## Optional Authentication
+
+For a project that requires login, add `projects/<project>/auth.py` beside its
+`testcases.csv` and define `authenticate(driver)`. The framework launches one
+browser per selected browser, calls this function once before that browser's
+tests, and reuses the authenticated browser for every screenshot in the run.
+Projects without `auth.py` are captured without authentication. In a
+multi-browser run, the hook runs once in each browser session.
+
+The hook owns the login workflow, so it can handle password-only forms,
+email-and-password forms, or any project-specific flow:
+
+```python
+from selenium.webdriver.common.by import By
+
+
+def authenticate(driver):
+    driver.get("https://example.com/login")
+    driver.find_element(By.NAME, "email").send_keys("your-email")
+    driver.find_element(By.NAME, "password").send_keys("your-password")
+    driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+    # Wait for a project-specific post-login element before returning.
+```
+
+Keep real credentials out of source control; read them from environment
+variables or another local secret store. The browser is headless by default;
+use `--no-headless` when the custom login flow requires a visible window.
+
+The `BhoomiVaidyam` project uses the development `devOtp` value returned by its
+`send-otp` response. Its auth hook reads that response from browser performance
+logs, so run it with Chrome or Edge; Firefox does not expose the required log.
+
 ## Quick Start
 
 ```bash
@@ -123,6 +155,9 @@ Comparison quality:
 - `--diff-sensitivity INT`
 - `--tile-threshold FLOAT`
 - `--tile-size INT`
+- The report's visual-match percentage is the fraction of image area in tiles
+  whose SSIM meets `--tile-threshold`. Global SSIM remains available as a
+  separate diagnostic.
 
 ```bash
 python main.py --project opinion_route --threshold 0.92
@@ -221,8 +256,8 @@ Exit code:
 
 `Page looks cut off at bottom`
 
-- The screenshot step now checks for vertical scroll just before save and increases height until the page fits (best effort).
-- If content still appears incomplete, increase per-test `page_data_load_wait` in `testcases.yaml` so lazy content has more time to render.
+- Captures use the baseline image height when available and check for remaining document scroll before saving.
+- If content still appears incomplete, increase per-test `page_data_load_wait` in `testcases.csv` so lazy content has more time to render.
 
 `Figma image not found`
 

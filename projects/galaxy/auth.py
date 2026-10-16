@@ -1,0 +1,2 @@
+def authenticate(driver):
+    pass

@@ -42,6 +42,12 @@ Worst-tile SSIM (tile-threshold + tile-size):
 - Good for localized regressions (missing icon, wrong label, broken button).
 - Smaller tile-size means stricter local detection.
 
+Report visual-match percentage:
+
+- Measures the fraction of image area covered by tiles whose SSIM meets `tile-threshold`.
+- A fully mismatched page has 0% match coverage; partial matches are shown as the matched-area percentage.
+- Global SSIM is still shown separately as a structural-similarity diagnostic.
+
 ## 3) Simple Example (Why 1 High SSIM Can Still FAIL)
 
 ```text

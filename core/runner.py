@@ -3,6 +3,8 @@ Orchestrates the end-to-end visual test execution for a sub-project.
 Logs all test lifecycle events, downloads, captures, and comparisons.
 """
 
+import csv
+import importlib.util
 import os
 import csv
 from collections import OrderedDict
@@ -321,7 +323,61 @@ class TestRunner:
             self.baseline_mode = "screenshot"
             logger.info("auto baseline mode: prior screenshots found, using screenshot")
 
-    def _run_single(self, tc: TestCase) -> TestResult:
+    def _start_browser_session(self, test_cases: List[TestCase]):
+        """Start one browser session and optionally run this project's login hook."""
+        if not self.capture_screenshots:
+            return None, None
+
+        runnable_cases = test_cases
+        if self.run_mode == "selected":
+            runnable_cases = [tc for tc in test_cases if tc.run]
+        if not runnable_cases:
+            return None, None
+
+        first_device = self.DEVICE_CONFIGS.get(
+            runnable_cases[0].device, self.DEVICE_CONFIGS["Desktop"]
+        )
+        capture = ScreenshotCapture(
+            browser=self.browser,
+            headless=self.headless,
+            dpr=self.dpr,
+            page_load_timeout=self.page_load_timeout,
+            page_data_load_wait=runnable_cases[0].page_data_load_wait,
+        )
+        driver = None
+        try:
+            driver = capture.create_driver(first_device["width"], first_device["height"])
+            auth_path = self.project_path / "auth.py"
+            if auth_path.is_file():
+                module_name = f"_visual_testing_auth_{self.project_path.name}"
+                spec = importlib.util.spec_from_file_location(module_name, auth_path)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Could not load project authentication module: {auth_path}")
+                auth_module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = auth_module
+                try:
+                    spec.loader.exec_module(auth_module)
+                except Exception:
+                    sys.modules.pop(module_name, None)
+                    raise
+                authenticate = getattr(auth_module, "authenticate", None)
+                if not callable(authenticate):
+                    raise AttributeError(
+                        f"{auth_path} must define a callable authenticate(driver) function"
+                    )
+                logger.info(f"Running project authentication hook: {auth_path}")
+                authenticate(driver)
+            return driver, None
+        except Exception as exc:
+            logger.exception(f"Could not start authenticated browser session: {exc}")
+            if driver is not None:
+                try:
+                    driver.quit()
+                except Exception:
+                    logger.warning("Could not close browser after session startup failure")
+            return None, f"Could not start browser session or authenticate: {exc}"
+
+    def _run_single(self, tc: TestCase, driver=None) -> TestResult:
         device_cfg = self.DEVICE_CONFIGS.get(
             tc.device, self.DEVICE_CONFIGS["Desktop"]
         )
@@ -434,6 +490,7 @@ class TestRunner:
                     figma_image_width=figma_image_width,
                     figma_image_height=figma_image_height,
                     match_figma_height=self.match_figma_height,
+                    driver=driver,
                 )
                 self._log(f"    -> Screenshot saved: {Path(screenshot_path).name}")
 

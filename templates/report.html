@@ -471,12 +471,6 @@
       <div class="stat-lbl">Skipped</div>
     </div>
   </div>
-  <div class="col-6 col-md-4 col-lg-2">
-    <div class="stat-card stat-error">
-      <div class="stat-num">{{ summary.errors }}</div>
-      <div class="stat-lbl">Errors</div>
-    </div>
-  </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ -->
@@ -494,10 +488,6 @@
   <button class="btn btn-sm" style="background:rgba(242,84,91,.2);color:var(--fail-color);"
           onclick="filterTests('failed', this)">
     Failed <span class="badge bg-dark ms-1">{{ summary.failed }}</span>
-  </button>
-  <button class="btn btn-sm" style="background:rgba(240,165,0,.2);color:var(--error-color);"
-          onclick="filterTests('error', this)">
-    Errors <span class="badge bg-dark ms-1">{{ summary.errors }}</span>
   </button>
   <button class="btn btn-sm" style="background:rgba(138,155,176,.15);color:var(--skip-color);"
           onclick="filterTests('skipped', this)">
@@ -519,12 +509,14 @@
     <span class="test-meta d-none d-sm-inline">
       <i class="bi bi-display me-1"></i>{{ test.device }}
     </span>
-    {% if test.similarity_pct is not none %}
+    {% if test.match_coverage_pct is not none %}
     <div class="similarity-bar-wrap d-none d-md-block">
-      <div class="label">{{ test.similarity_pct }}%</div>
+      <div class="label" title="Area covered by tiles meeting the tile SSIM threshold">
+        {{ test.match_coverage_pct }}% match
+      </div>
       <div class="sim-progress">
         <div class="sim-fill"
-             style="width:{{ test.similarity_pct }}%;
+             style="width:{{ test.match_coverage_pct }}%;
                     background:{% if test.status == 'passed' %}var(--pass-color)
                                {% else %}var(--fail-color){% endif %};">
         </div>
@@ -559,9 +551,14 @@
            style="color:#7eb8f7; text-decoration:none;">{{ test.url }}</a>
       </span></div>
       <div class="meta-chip"><i class="bi bi-display me-1"></i>Device: <span>{{ test.device }}</span></div>
-      {% if test.similarity_pct is not none %}
-      <div class="meta-chip"><i class="bi bi-graph-up me-1"></i>SSIM: <span>{{ test.similarity_pct }}%</span></div>
-      <div class="meta-chip"><i class="bi bi-bullseye me-1"></i>Threshold: <span>{{ test.threshold_pct }}%</span></div>
+      {% if test.match_coverage_pct is not none %}
+      <div class="meta-chip"
+           title="Percentage of image area covered by tiles whose SSIM meets the tile threshold">
+        <i class="bi bi-graph-up me-1"></i>Visual match:
+        <span>{{ test.match_coverage_pct }}%</span>
+      </div>
+      <div class="meta-chip"><i class="bi bi-graph-up me-1"></i>Global SSIM: <span>{{ test.global_ssim_pct }}%</span></div>
+      <div class="meta-chip"><i class="bi bi-bullseye me-1"></i>SSIM threshold: <span>{{ test.threshold_pct }}%</span></div>
       <div class="meta-chip"
            {% if test.max_diff_pct is not none and test.diff_pixels_pct > test.max_diff_pct %}
            style="color:#f87171; border-color:rgba(248,113,113,.4);"

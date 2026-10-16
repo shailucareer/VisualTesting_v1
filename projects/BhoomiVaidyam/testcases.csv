@@ -1,0 +1,6 @@
+name,run,device,figma_file_name,url,page_data_load_wait
+login,Y,Desktop,login.png,https://bhoomivaidyam.galaxyweblinks.com/admin-login,30
+Dashboard,Y,Desktop,Dashboard.png,https://bhoomivaidyam.galaxyweblinks.com/admin/dashboard,30
+PatientsManagementDashboard,Y,Desktop,PatientsManagementDashboard.png,https://bhoomivaidyam.galaxyweblinks.com/admin/patients,30
+ProviderManagementDashboard,Y,Desktop,ProviderManagementDashboard.png,https://bhoomivaidyam.galaxyweblinks.com/admin/providers,30
+CouponManagement,Y,Desktop,CouponManagement.png,https://bhoomivaidyam.galaxyweblinks.com/admin/coupons,30
